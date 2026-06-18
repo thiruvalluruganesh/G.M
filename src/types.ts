@@ -36,7 +36,8 @@ export interface Message {
   viewed?: boolean;
   expiresAt?: string; // For 24-hour expiring messages
   mediaUrl?: string;  // Simulated attachment image option
-  mediaType?: 'image' | 'video';
+  mediaType?: 'image' | 'video' | 'audio';
+  audioDuration?: number;
 
   // Reply Structure
   replyTo?: {

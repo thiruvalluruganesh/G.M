@@ -19,6 +19,7 @@ import {
   MapPin, 
   ChevronLeft,
   Tv, 
+  Trash,
   X,
   Share2,
   Check,
@@ -39,10 +40,53 @@ import {
   EyeOff,
   CornerUpLeft,
   Zap,
-  BarChart2
+  BarChart2,
+  Video,
+  Mic,
+  Palette,
+  Pause,
+  UserPlus
 } from 'lucide-react';
 import { UserProfile, ChatThread, EphemeralStory, GeoMarker, WsLogEntry } from '../types';
-import { CURRENT_USER } from '../data/mockData';
+import { CURRENT_USER, MOCK_USERS } from '../data/mockData';
+
+export const WALLPAPER_STYLES: Record<string, { name: string; bgClass: string; textCard: string; accentColor: string; description: string }> = {
+  default: { 
+    name: 'Default Crypt', 
+    bgClass: 'bg-[#070311]/50', 
+    textCard: 'bg-[#120a24]/80 text-slate-200 border border-purple-950/30',
+    accentColor: 'text-fuchsia-400',
+    description: 'Symmetric dark matte atmospheric cipher mesh' 
+  },
+  sunset: { 
+    name: 'Cyber Sunset Neon', 
+    bgClass: 'bg-gradient-to-b from-[#1c082b] via-[#350d3d] to-[#04010a] bg-opacity-95', 
+    textCard: 'bg-[#210931]/85 text-pink-100 border border-pink-950/45',
+    accentColor: 'text-pink-400',
+    description: 'Hot neon twilight mesh gradients' 
+  },
+  nebula: { 
+    name: 'Cosmic Nebula Glow', 
+    bgClass: 'bg-gradient-to-tr from-[#04051a] via-[#0d0c24] to-[#0a1826] bg-opacity-95', 
+    textCard: 'bg-[#0f1131]/85 text-cyan-100 border border-cyan-950/40',
+    accentColor: 'text-cyan-400',
+    description: 'Deconstruct cosmic stardust spectrum' 
+  },
+  matrix: { 
+    name: 'Matrix Grid Protocol', 
+    bgClass: 'bg-gradient-to-b from-[#020b03] to-[#000500] relative after:content-[""] after:absolute after:inset-0 after:bg-[radial-gradient(circle,rgba(34,197,94,0.1)_1px,transparent_1px)] after:bg-[size:16px_16px]', 
+    textCard: 'bg-[#021808]/90 text-emerald-100 border border-emerald-950/50',
+    accentColor: 'text-emerald-400',
+    description: 'Interactive green command line matrix' 
+  },
+  charcoal: { 
+    name: 'Monochrome Carbon', 
+    bgClass: 'bg-[#080808] relative after:content-[""] after:absolute after:inset-0 after:bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] after:bg-[size:20px_20px]', 
+    textCard: 'bg-[#141414]/90 text-neutral-200 border border-neutral-850',
+    accentColor: 'text-neutral-400',
+    description: 'Pure stealth matte grid aesthetics' 
+  }
+};
 
 interface ViewportSimProps {
   chats: ChatThread[];
@@ -56,7 +100,8 @@ interface ViewportSimProps {
     options?: {
       isViewOnce?: boolean;
       mediaUrl?: string;
-      mediaType?: 'image' | 'video';
+      mediaType?: 'image' | 'video' | 'audio';
+      audioDuration?: number;
       expiresAt?: string;
       replyTo?: { id: string; senderName: string; text: string };
     }
@@ -68,6 +113,9 @@ interface ViewportSimProps {
   onAddReaction: (chatId: string, messageId: string, emoji: string) => void;
   onViewMessageOnce: (chatId: string, messageId: string) => void;
   onUpdateGroupSettings?: (chatId: string, updates: { name?: string; avatar?: string; members?: string[] }) => void;
+  onCreateNewChat?: (username: string, name: string, avatar: string) => string;
+  forcedTab?: 'feed' | 'explore' | 'chats' | 'profile';
+  forcedIsGemMenuOpen?: boolean;
 }
 
 export function ViewportSim({
@@ -83,11 +131,70 @@ export function ViewportSim({
   onTriggerWsLog,
   onAddReaction,
   onViewMessageOnce,
-  onUpdateGroupSettings
+  onUpdateGroupSettings,
+  onCreateNewChat,
+  forcedTab,
+  forcedIsGemMenuOpen
 }: ViewportSimProps) {
   
   // 5 Active Tabs: 'feed' | 'explore' | 'chats' | 'profile'
-  const [activeTab, setActiveTab] = useState<'feed' | 'explore' | 'chats' | 'profile'>('feed');
+  const [localActiveTab, setLocalActiveTab] = useState<'feed' | 'explore' | 'chats' | 'profile'>('feed');
+  const activeTab = forcedTab || localActiveTab;
+  const setActiveTab = forcedTab ? () => {} : setLocalActiveTab;
+
+  // INTEGRATED PHASES STATE (The User Journey)
+  const [projectMilestoneProgress, setProjectMilestoneProgress] = useState(70);
+  const [curatorLevel, setCuratorLevel] = useState(5);
+  const [totalGEMSGenerated, setTotalGEMSGenerated] = useState(1482);
+  const [isLegacySaved, setIsLegacySaved] = useState(false);
+  const [isMyAiChatOpen, setIsMyAiChatOpen] = useState(false);
+  const [aiInputText, setAiInputText] = useState('');
+  const [myAiChatLog, setMyAiChatLog] = useState<Array<{ sender: 'user' | 'ai', text: string, timestamp: string }>>([
+    {
+      sender: 'ai',
+      text: "👋 Salutations, Curator! I am your AI Design & Impact Coach. Ask me how to grow your Local Intention projects or optimize community GEM interest!",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+  ]);
+  const [isProofEditorOpen, setIsProofEditorOpen] = useState(false);
+  const [proofEditorBrightness, setProofEditorBrightness] = useState(100);
+  const [proofEditorContrast, setProofEditorContrast] = useState(100);
+  const [proofEditorSaturation, setProofEditorSaturation] = useState(100);
+  const [proofSelectedMilestone, setProofSelectedMilestone] = useState('Completed Milestone 2: Coordinate Volunteers');
+  const [proofSelectedImg, setProofSelectedImg] = useState('https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=600&auto=format&fit=crop&q=80');
+  const [proofEditorCaption, setProofEditorCaption] = useState('Success at SOMA! Gathered the roasters for calibration and organic tasting profiles.');
+  const [proofPosts, setProofPosts] = useState<Array<{
+    id: string;
+    author: string;
+    username: string;
+    avatar: string;
+    imgUrl: string;
+    caption: string;
+    milestone: string;
+    brightness: number;
+    contrast: number;
+    saturation: number;
+    likes: number;
+    hasLiked?: boolean;
+    timestamp: string;
+  }>>([
+    {
+      id: 'proof_1_mia',
+      author: 'Mia C.',
+      username: '@mia_phorgraphy',
+      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80',
+      imgUrl: 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=600&auto=format&fit=crop&q=80',
+      caption: 'Main garden layout set! Planted 4 regional botanicals in South Park.',
+      milestone: 'Completed Garden Milestone 1',
+      brightness: 110,
+      contrast: 105,
+      saturation: 120,
+      likes: 42,
+      timestamp: '1h ago'
+    }
+  ]);
+  const [isVideoCallSuiteOpen, setIsVideoCallSuiteOpen] = useState(false);
+  const [videoCallMode, setVideoCallMode] = useState<'normal_split' | 'comms_debrief'>('normal_split');
   
   // Story interactive filters & search queries
   const [storySearchQuery, setStorySearchQuery] = useState('');
@@ -114,7 +221,9 @@ export function ViewportSim({
   
   // Map interactive states
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>('marker_cozy'); // Default to cozy pop-up card view
-  const [isGemMenuOpen, setIsGemMenuOpen] = useState(false);
+  const [localIsGemMenuOpen, setLocalIsGemMenuOpen] = useState(false);
+  const isGemMenuOpen = forcedIsGemMenuOpen !== undefined ? forcedIsGemMenuOpen : localIsGemMenuOpen;
+  const setIsGemMenuOpen = forcedIsGemMenuOpen !== undefined ? () => {} : setLocalIsGemMenuOpen;
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   
   // Custom interactive mock post counters
@@ -151,6 +260,46 @@ export function ViewportSim({
   // Message Reactions & Direct Replies states
   const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
   const [replyingMessage, setReplyingMessage] = useState<any | null>(null);
+
+  // --- NEW INTEGRATIONS: Chat Wallpapers, Search, and Audio Messages ---
+  const [chatWallpapers, setChatWallpapers] = useState<Record<string, string>>({});
+  const [isWallpaperMenuOpen, setIsWallpaperMenuOpen] = useState(false);
+  const [chatSearchQuery, setChatSearchQuery] = useState('');
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+  const [audioRecordingSecs, setAudioRecordingSecs] = useState(0);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [audioPlayProgress, setAudioPlayProgress] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let recTimer: any;
+    if (isRecordingAudio) {
+      setAudioRecordingSecs(0);
+      recTimer = setInterval(() => {
+        setAudioRecordingSecs(prev => prev + 1);
+      }, 1000);
+    } else {
+      setAudioRecordingSecs(0);
+    }
+    return () => clearInterval(recTimer);
+  }, [isRecordingAudio]);
+
+  useEffect(() => {
+    let playTimer: any;
+    if (playingAudioId) {
+      playTimer = setInterval(() => {
+        setAudioPlayProgress(prev => {
+          const current = prev[playingAudioId] || 0;
+          if (current >= 100) {
+            setPlayingAudioId(null);
+            return { ...prev, [playingAudioId]: 0 };
+          }
+          return { ...prev, [playingAudioId]: current + 5 };
+        });
+      }, 150);
+    }
+    return () => clearInterval(playTimer);
+  }, [playingAudioId]);
+  // ---------------------------------------------------------------------
 
   // Live Location settings (WhatsApp/Snapchat SnapMap)
   const [isSharingLiveCoords, setIsSharingLiveCoords] = useState(false);
@@ -550,6 +699,96 @@ export function ViewportSim({
 
                 {/* Dashboard Scroll Segment */}
                 <div className="flex-1 overflow-y-auto p-3 space-y-4">
+
+                  {/* Curated Proof-Of-Impact Posts */}
+                  {proofPosts.map((post) => (
+                    <div 
+                      key={post.id} 
+                      className="bg-[#120a24]/80 border-2 border-fuchsia-500/25 rounded-[24px] p-3 shadow-xl space-y-3 relative overflow-hidden"
+                    >
+                      {/* Ambient background glow if user-curated */}
+                      <div className="absolute -top-12 -left-12 w-24 h-24 bg-fuchsia-500/10 blur-xl rounded-full" />
+                      
+                      {/* Post Header */}
+                      <div className="flex items-center justify-between relative z-10">
+                        <div className="flex items-center gap-2.5">
+                          <img src={post.avatar} alt={post.author} className="w-8.5 h-8.5 rounded-full object-cover border border-purple-500/30" />
+                          <div className="flex flex-col text-left">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11.5px] font-extrabold text-white">{post.author}</span>
+                              <span className="w-1 h-1 bg-fuchsia-400 rounded-full animate-ping" />
+                              <span className="text-[8.5px] text-fuchsia-300 font-mono font-bold">VERIFIED CURATOR</span>
+                            </div>
+                            <span className="text-[9px] text-slate-400 font-mono leading-none mt-0.5">{post.username}</span>
+                          </div>
+                        </div>
+
+                        <span className="text-slate-500 font-mono text-[8px]">{post.timestamp}</span>
+                      </div>
+
+                      {/* Display Image with exact CSS filters embedded */}
+                      <div className="relative w-full h-[180px] rounded-2xl overflow-hidden bg-[#05020c] border border-purple-950">
+                        <img 
+                          src={post.imgUrl} 
+                          alt="Curated result state" 
+                          className="w-full h-full object-cover transition-all"
+                          style={{
+                            filter: `brightness(${post.brightness}%) contrast(${post.contrast}%) saturate(${post.saturation}%)`
+                          }}
+                        />
+                        
+                        {/* Dynamic filter telemetry badges */}
+                        <div className="absolute top-2.5 right-2.5 bg-black/75 px-2 py-0.5 rounded-full text-[7.5px] font-mono text-fuchsia-300 border border-purple-500/20 flex gap-2">
+                          <span>B:{post.brightness}%</span>
+                          <span>C:{post.contrast}%</span>
+                          <span>S:{post.saturation}%</span>
+                        </div>
+
+                        {/* Location / Zone Tag */}
+                        <div className="absolute bottom-3 left-3 bg-black/80 border border-purple-500/20 px-2 py-0.5 rounded-full text-[8.5px] text-slate-300 font-bold flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-fuchsia-400 animate-bounce" />
+                          <span>SOMA Volunteer Zone</span>
+                        </div>
+                      </div>
+
+                      <div className="text-left space-y-1.5 relative z-10 font-sans">
+                        {/* Milestone verified block */}
+                        <div className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.8 rounded-xl text-emerald-400 text-[8.5px] font-mono font-bold">
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          <span>{post.milestone}</span>
+                        </div>
+
+                        <p className="text-[11px] text-slate-200 leading-relaxed font-medium">
+                          {post.caption}
+                        </p>
+                      </div>
+
+                      {/* Action Trays */}
+                      <div className="flex items-center justify-between pt-1 border-t border-purple-950/30 font-mono">
+                        <div className="flex items-center gap-4">
+                          <button 
+                            onClick={() => {
+                              setProofPosts(prev => prev.map(p => {
+                                if (p.id === post.id) {
+                                  const liked = !p.hasLiked;
+                                  return { ...p, hasLiked: liked, likes: p.likes + (liked ? 1 : -1) };
+                                }
+                                return p;
+                              }));
+                              setStatusMessage("+1 Gem heart registered");
+                              setTimeout(() => setStatusMessage(null), 1500);
+                            }}
+                            className={`flex items-center gap-1 text-[10px] transition-all cursor-pointer ${post.hasLiked ? 'text-pink-400 font-bold scale-105' : 'text-slate-400 hover:text-slate-200'}`}
+                          >
+                            <Gem className={`w-3.5 h-3.5 ${post.hasLiked ? 'text-pink-400 fill-pink-500/20' : 'text-slate-400'}`} />
+                            <span>{post.likes} Gems</span>
+                          </button>
+                        </div>
+
+                        <span className="text-[7.5px] text-purple-400 font-mono uppercase bg-purple-950/40 px-2 py-0.5 rounded border border-purple-500/10">ON-CHAIN VERIFIED</span>
+                      </div>
+                    </div>
+                  ))}
                   
                   {/* Sunset Post from Alex R. (@alex_photography - 2h) */}
                   <div id="feed-sunset-post" className="bg-[#120a24]/50 border border-purple-950/40 rounded-[24px] p-3 shadow-xl space-y-3">
@@ -989,64 +1228,129 @@ export function ViewportSim({
                             initial={{ y: 150, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             exit={{ y: 150, opacity: 0 }}
-                            className="absolute bottom-4 left-4 right-4 bg-[#0a0515]/90 border border-purple-500/20 p-3.5 rounded-3xl shadow-[0_4px_30px_rgba(0,0,0,0.4)] backdrop-blur-xl z-30 flex flex-col gap-3"
+                            className="absolute bottom-4 left-4 right-4 bg-[#0e0722]/95 border border-fuchsia-500/30 p-3.5 rounded-3xl shadow-[0_4px_30px_rgba(244,63,94,0.15)] backdrop-blur-xl z-30 flex flex-col gap-2.5 text-left"
                           >
-                            <div className="flex items-start gap-3 text-left">
+                            <div className="flex items-start gap-3">
                               {/* Cafe thumbnail photo left */}
-                              <div className="w-[85px] h-[90px] rounded-2xl overflow-hidden bg-[#05020c] shrink-0 border border-purple-500/10">
+                              <div className="w-[85px] h-[95px] rounded-2xl overflow-hidden bg-[#05020c] shrink-0 border border-purple-500/10 relative">
                                 <img 
                                   src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=200&auto=format&fit=crop&q=80" 
-                                  alt="The Cozy Cup Pop-Up" 
-                                  className="w-full h-full object-cover"
+                                  alt="Local Roasters Meetup" 
+                                  className="w-full h-full object-cover saturate-110"
                                 />
+                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1 text-center">
+                                  <span className="text-[7px] text-fuchsia-300 font-extrabold uppercase tracking-wide">GEM PROJECT</span>
+                                </div>
                               </div>
 
                               {/* Details right */}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
-                                  <h4 className="text-xs font-black text-white truncate max-w-[150px]">The Cozy Cup Pop-Up</h4>
-                                  <button onClick={() => setSelectedMarkerId(null)} className="text-slate-400 hover:text-white p-0.5">
+                                  <h4 className="text-[12px] font-black text-white hover:text-fuchsia-300 transition-colors truncate">☕ Local Roasters Meetup</h4>
+                                  <button onClick={() => setSelectedMarkerId(null)} className="text-slate-400 hover:text-white p-0.5 transition-colors cursor-pointer">
                                     <X className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
-                                <span className="text-[9px] text-fuchsia-400 font-mono">by @local_roaster</span>
+                                <span className="text-[9px] text-fuchsia-400 font-mono font-bold flex items-center gap-1">
+                                  by Sarah L.
+                                  <ShieldCheck className="w-3 h-3 text-fuchsia-400" />
+                                </span>
                                 <p className="text-[9.5px] text-slate-300 leading-snug mt-1 max-h-[38px] overflow-hidden">
-                                  Event description for a curated booth comement with in a curated booth.
+                                  Co-designing customized micro-roasts with community flavor metrics & spatial feedback logs.
                                 </p>
                                 
-                                <div className="flex items-center gap-1.5 text-[8.5px] text-slate-400 font-mono mt-1.5">
-                                  <Clock className="w-3 h-3 text-purple-400 shrink-0" />
-                                  <span>Sat, 10am - 4pm</span>
+                                {/* Dynamic project metric: Milestone Progress */}
+                                <div className="mt-1.5 space-y-1">
+                                  <div className="flex items-center justify-between text-[8px] font-mono">
+                                    <span className="text-slate-400 uppercase">Project Milestone</span>
+                                    <span className="text-fuchsia-400 font-extrabold">{projectMilestoneProgress}% complete</span>
+                                  </div>
+                                  <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden border border-purple-900/45">
+                                    <div 
+                                      className="h-full bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-full transition-all duration-500"
+                                      style={{ width: `${projectMilestoneProgress}%` }}
+                                    />
+                                  </div>
                                 </div>
+                              </div>
+                            </div>
+
+                            {/* View Project goal / Media showcase section */}
+                            <div className="grid grid-cols-2 gap-2 my-0.5 bg-[#120a24]/50 p-2 rounded-2xl border border-purple-950/40">
+                              <div className="flex flex-col text-left">
+                                <span className="text-[7.5px] font-mono text-slate-400 uppercase">Live interested</span>
+                                <span className="text-xs font-black text-rose-400 flex items-center gap-1 font-mono">
+                                  <Gem className="w-3.5 h-3.5 animate-pulse text-pink-400" />
+                                  15 GEMS
+                                </span>
+                              </div>
+                              <div className="flex flex-col text-left border-l border-purple-950/40 pl-2">
+                                <span className="text-[7.5px] font-mono text-slate-400 uppercase">Proof Media</span>
+                                <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 font-mono">
+                                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
+                                  {proofPosts.length + 1} curated
+                                </span>
                               </div>
                             </div>
 
                             {/* Badge and Active interaction buttons */}
                             <div className="flex items-center justify-between border-t border-purple-950/40 pt-2 text-[9px]">
-                              {/* 15 gems interested badge */}
-                              <div className="flex items-center gap-1 text-pink-300 bg-pink-500/10 p-1 px-2.5 rounded-full border border-pink-500/25">
-                                <Gem className="w-3 h-3 text-pink-400" />
-                                <span className="font-semibold font-mono">15 gems interested</span>
-                              </div>
+                              {/* 15 gems interested badge button */}
+                              <button 
+                                onClick={() => {
+                                  setTotalGEMSGenerated(prev => prev + 1);
+                                  setStatusMessage("Successfully staked 1 GEM coordinate on Sarah's project!");
+                                  onTriggerWsLog({
+                                    id: `log_${Date.now()}`,
+                                    timestamp: new Date().toISOString(),
+                                    direction: 'client_to_server',
+                                    event: 'project:stake_gem',
+                                    payload: { project: "Local Roasters Meetup", participant: CURRENT_USER.username }
+                                  });
+                                  setTimeout(() => setStatusMessage(null), 2500);
+                                }}
+                                className="flex items-center gap-1 text-pink-300 bg-pink-500/10 p-1 px-2.5 rounded-full border border-pink-500/25 hover:bg-pink-500/20 active:scale-95 transition-all text-[8.5px] font-mono cursor-pointer"
+                              >
+                                <Gem className="w-3 h-3 text-pink-400 animate-bounce" />
+                                <span className="font-semibold">+ STAKE GEM</span>
+                              </button>
 
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5">
                                 <button 
                                   onClick={() => {
-                                    setStatusMessage("Marked interest! Synchronized coordinates.");
-                                    setTimeout(() => setStatusMessage(null), 2500);
+                                    setStatusMessage("Launching Content Universe detail deck...");
+                                    setTimeout(() => setStatusMessage(null), 2000);
+                                    setActiveStoryIdx(0);
                                   }}
-                                  className="p-1 px-2 rounded-xl bg-purple-950/70 border border-purple-500/15 hover:bg-purple-900/60 transition-colors text-slate-300 hover:text-white font-mono"
+                                  className="p-1 px-2 rounded-xl bg-purple-950/70 border border-purple-500/20 hover:bg-purple-900/60 transition-colors text-slate-300 hover:text-white font-mono text-[8.5px] cursor-pointer"
                                 >
-                                  + INTEREST
+                                  VIEW MEDIA
                                 </button>
                                 <button 
                                   onClick={() => {
-                                    handleChatSelect('chat_group_1');
-                                    setSelectedMarkerId(null);
+                                    setStatusMessage("Synthesizing Temporary Volunteer Crew Sockets...");
+                                    onTriggerWsLog({
+                                      id: `log_${Date.now()}`,
+                                      timestamp: new Date().toISOString(),
+                                      direction: 'client_to_server',
+                                      event: 'room:convert_volunteer_group',
+                                      payload: {
+                                        roomId: 'chat_group_roasters_vol',
+                                        originalMarkerId: 'marker_cozy',
+                                        assignedName: '☕ Roasters Volunteers Squad',
+                                        volunteers: ['@luna_wave', '@kai_zen', '@sol_pixel', '@alex_gem']
+                                      }
+                                    });
+
+                                    setTimeout(() => {
+                                      handleChatSelect('chat_group_1');
+                                      setStatusMessage("Formed Crew! Group chat synchronized.");
+                                      setTimeout(() => setStatusMessage(null), 2500);
+                                    }, 800);
                                   }}
-                                  className="p-1 px-2.5 bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white font-bold rounded-xl shadow-md cursor-pointer hover:opacity-90 active:scale-95 duration-150"
+                                  className="p-1 px-2.5 bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-white font-bold rounded-xl shadow-md hover:opacity-90 active:scale-95 transition-all text-[8.5px] cursor-pointer"
                                 >
-                                  Enter Chat
+                                  FORM CREW
                                 </button>
                               </div>
                             </div>
@@ -1153,45 +1457,209 @@ export function ViewportSim({
                       </div>
                     </div>
 
-                    {/* Chat channels listing */}
-                    <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Active Socket Links</span>
-                        <Filter className="w-3 h-3 text-slate-500" />
-                      </div>
-
-                      {chats.map(chat => {
-                        const lastMsg = chat.messages[chat.messages.length - 1];
-                        return (
-                          <div
-                            key={chat.id}
-                            id={`chat-thread-${chat.id}`}
-                            onClick={() => handleChatSelect(chat.id)}
-                            className="p-3 bg-[#120a24]/40 hover:bg-[#120a24]/80 border border-purple-950/40 rounded-2xl flex items-start gap-3 transition-colors cursor-pointer group"
+                    {/* Chat Search Input */}
+                    <div className="px-3 pb-3.5 pt-1 border-b border-purple-950/30 shrink-0">
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-purple-400">
+                          <Search className="w-3.5 h-3.5" />
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Search streams, logs, or look up users..."
+                          value={chatSearchQuery}
+                          onChange={(e) => setChatSearchQuery(e.target.value)}
+                          className="w-full pl-8.5 pr-8 py-1.5 bg-[#120a24]/50 border border-purple-950/50 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-xl text-xs text-white placeholder-slate-500 outline-none font-sans"
+                        />
+                        {chatSearchQuery && (
+                          <button
+                            onClick={() => setChatSearchQuery('')}
+                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-white pb-0.5"
                           >
-                            <div className="relative shrink-0">
-                              <img src={chat.avatar} alt={chat.name} className="w-10 h-10 rounded-xl object-cover border border-purple-500/20" />
-                              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-fuchsia-500 border-2 border-[#05020c] rounded-full" />
-                            </div>
-                            <div className="flex-1 min-w-0 text-left">
-                              <div className="flex items-center justify-between leading-none mb-1">
-                                <h4 className="text-[11.5px] font-bold text-slate-200 group-hover:text-purple-400 transition-colors truncate">{chat.name}</h4>
-                                <span className="text-[8.5px] text-slate-500 font-mono">
-                                  {lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
-                                </span>
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Chat channels listing */}
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3.5 scrollbar-thin">
+                      {(() => {
+                        const trimmedQuery = chatSearchQuery.trim().toLowerCase();
+                        
+                        if (trimmedQuery) {
+                          const matchedChats = chats.filter(chat => 
+                            chat.name.toLowerCase().includes(trimmedQuery) ||
+                            chat.messages.some(msg => msg.text.toLowerCase().includes(trimmedQuery))
+                          );
+
+                          // Users that are searchable (excluding user_me)
+                          const matchedUsers = MOCK_USERS.filter(u => 
+                            u.id !== 'user_me' && (
+                              u.name.toLowerCase().includes(trimmedQuery) ||
+                              u.username.toLowerCase().includes(trimmedQuery)
+                            )
+                          );
+
+                          return (
+                            <div className="space-y-4">
+                              {/* 1. Matches inside active streams */}
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between px-1">
+                                  <span className="text-[9px] font-bold text-fuchsia-400 tracking-wider uppercase">Active Sockets Matched ({matchedChats.length})</span>
+                                </div>
+                                {matchedChats.length > 0 ? (
+                                  matchedChats.map(chat => {
+                                    const lastMsg = chat.messages[chat.messages.length - 1];
+                                    return (
+                                      <div
+                                        key={chat.id}
+                                        onClick={() => {
+                                          handleChatSelect(chat.id);
+                                          setChatSearchQuery('');
+                                        }}
+                                        className="p-3 bg-[#120a24]/50 hover:bg-[#120a24]/90 border border-purple-950/40 rounded-2xl flex items-start gap-3 transition-colors cursor-pointer group"
+                                      >
+                                        <img src={chat.avatar} alt={chat.name} className="w-9 h-9 rounded-xl object-cover border border-purple-500/20" />
+                                        <div className="flex-1 min-w-0 text-left">
+                                          <div className="flex items-center justify-between leading-none mb-1">
+                                            <h4 className="text-[11px] font-black text-slate-200 group-hover:text-purple-400 truncate">{chat.name}</h4>
+                                            <span className="text-[8px] text-slate-500 font-mono">LINKED</span>
+                                          </div>
+                                          <p className="text-[9px] text-slate-400 truncate">
+                                            {lastMsg ? `${lastMsg.senderName}: ${lastMsg.text}` : 'No messages'}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  <div className="text-[9px] text-slate-500 italic py-2 text-center">No active chats match your query</div>
+                                )}
                               </div>
-                              <p className="text-[9.5px] text-slate-400 truncate">
-                                {lastMsg ? `${lastMsg.senderName}: ${lastMsg.text}` : 'No messages'}
-                              </p>
-                            </div>
-                            {chat.unreadCount > 0 && (
-                              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-[8.5px] text-white font-bold h-3.5 px-1.5 min-w-3.5 rounded-full flex items-center justify-center shrink-0 self-center">
-                                {chat.unreadCount}
+
+                              {/* 2. Matches inside global simulated directory */}
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between px-1">
+                                  <span className="text-[9px] font-bold text-cyan-400 tracking-wider uppercase">Secure Directory Lookup ({matchedUsers.length})</span>
+                                </div>
+                                {matchedUsers.length > 0 ? (
+                                  matchedUsers.map(user => {
+                                    return (
+                                      <div
+                                        key={user.id}
+                                        onClick={() => {
+                                          if (onCreateNewChat) {
+                                            const id = onCreateNewChat(user.username, user.name, user.avatar);
+                                            handleChatSelect(id);
+                                          }
+                                          setChatSearchQuery('');
+                                        }}
+                                        className="p-3 bg-[#0a0f1d]/40 hover:bg-cyan-500/10 border border-cyan-950/20 hover:border-cyan-505/30 rounded-2xl flex items-center justify-between gap-3 transition-all cursor-pointer group"
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          <div className="relative shrink-0">
+                                            <img src={user.avatar} alt={user.name} className="w-8.5 h-8.5 rounded-xl object-cover border border-cyan-500/15" />
+                                            <div className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#05020c] ${user.status === 'online' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                                          </div>
+                                          <div className="text-left min-w-0">
+                                            <h4 className="text-[11px] font-bold text-slate-200 group-hover:text-cyan-400 truncate">{user.name}</h4>
+                                            <p className="text-[8px] text-slate-400 font-mono">@{user.username}</p>
+                                          </div>
+                                        </div>
+                                        <button className="p-1.5 text-[8px] font-black text-cyan-400 bg-cyan-500/10 rounded-lg hover:bg-cyan-500/20 uppercase font-mono flex items-center gap-1">
+                                          <UserPlus className="w-2.5 h-2.5" />
+                                          Connect
+                                        </button>
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  <div className="text-[9px] text-slate-500 italic py-2 text-center">No directory nodes match query</div>
+                                )}
                               </div>
-                            )}
+                            </div>
+                          );
+                        }
+
+                        // Otherwise show standard list
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between px-1 pb-1">
+                              <span className="text-[9.5px] font-extrabold text-slate-400 tracking-wider uppercase">Active Sockets</span>
+                              <div className="flex items-center gap-2 text-slate-500 font-mono text-[8px]">
+                                <span>AES-GCM-256</span>
+                                <Filter className="w-3 h-3" />
+                              </div>
+                            </div>
+
+                            {chats.map(chat => {
+                              const lastMsg = chat.messages[chat.messages.length - 1];
+                              return (
+                                <div
+                                  key={chat.id}
+                                  id={`chat-thread-${chat.id}`}
+                                  onClick={() => handleChatSelect(chat.id)}
+                                  className="p-3 bg-[#120a24]/40 hover:bg-[#120a24]/80 border border-purple-950/40 rounded-2xl flex items-start gap-3 transition-colors cursor-pointer group"
+                                >
+                                  <div className="relative shrink-0">
+                                    <img src={chat.avatar} alt={chat.name} className="w-9.5 h-9.5 rounded-xl object-cover border border-purple-500/20" />
+                                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-fuchsia-500 border-2 border-[#05020c] rounded-full" />
+                                  </div>
+                                  <div className="flex-1 min-w-0 text-left">
+                                    <div className="flex items-center justify-between leading-none mb-1">
+                                      <h4 className="text-[11.5px] font-extrabold text-slate-200 group-hover:text-purple-400 transition-colors truncate">{chat.name}</h4>
+                                      <span className="text-[8.5px] text-slate-500 font-mono">
+                                        {lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                                      </span>
+                                    </div>
+                                    <p className="text-[9.5px] text-slate-400 truncate">
+                                      {lastMsg ? (
+                                        lastMsg.mediaType === 'audio' ? (
+                                          <span className="flex items-center gap-1 text-rose-450 font-mono text-[9px]">
+                                            🎙️ Voice Note ({lastMsg.audioDuration ? `${Math.floor(lastMsg.audioDuration / 60)}:${String(lastMsg.audioDuration % 60).padStart(2, '0')}` : '0:07'})
+                                          </span>
+                                        ) : (
+                                          `${lastMsg.senderName}: ${lastMsg.text}`
+                                        )
+                                      ) : 'No messages'}
+                                    </p>
+                                  </div>
+                                  {chat.unreadCount > 0 && (
+                                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-[8.5px] text-white font-bold h-3.5 px-1.5 min-w-3.5 rounded-full flex items-center justify-center shrink-0 self-center">
+                                      {chat.unreadCount}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                            {/* Direct Connect Quick Start Directory Shortcuts */}
+                            <div className="pt-2 border-t border-purple-950/20">
+                              <span className="text-[8px] text-purple-400 font-black uppercase tracking-widest pl-1">Secure Directory Quick Sockets</span>
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                {MOCK_USERS.filter(u => u.id !== 'user_me' && !chats.some(c => c.name === u.name)).map(user => (
+                                  <div
+                                    key={user.id}
+                                    onClick={() => {
+                                      if (onCreateNewChat) {
+                                        const id = onCreateNewChat(user.username, user.name, user.avatar);
+                                        handleChatSelect(id);
+                                      }
+                                    }}
+                                    className="p-2 bg-[#0c051a]/60 hover:bg-[#1a0f35]/50 border border-purple-950/40 hover:border-purple-500/20 rounded-xl flex items-center gap-2 transition-all cursor-pointer text-left"
+                                  >
+                                    <img src={user.avatar} className="w-6.5 h-6.5 rounded-lg object-cover border border-purple-500/10 animate-fade-in" alt={user.name} />
+                                    <div className="min-w-0">
+                                      <h5 className="text-[9.5px] font-black text-slate-200 truncate leading-tight">{user.name.split(' ')[0]}</h5>
+                                      <span className="text-[7px] text-fuchsia-400 font-mono">@{user.username}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         );
-                      })}
+                      })()}
                     </div>
                   </div>
                 ) : (
@@ -1242,21 +1710,49 @@ export function ViewportSim({
                         
                         <div className="flex items-center gap-1.5">
                           {activeChat.type === 'group' && (
-                            <button
-                              id="btn-group-settings-cog"
-                              onClick={() => {
-                                setGroupSettingsName(activeChat.name);
-                                setGroupSettingsAvatar(activeChat.avatar || '');
-                                setIsGroupSettingsOpen(true);
-                              }}
-                              className="p-1.5 bg-purple-950/60 border border-purple-500/20 hover:border-purple-400 rounded-xl text-purple-300 hover:text-white transition-all cursor-pointer"
-                              title="Configure Group"
-                            >
-                              <Settings className="w-3.5 h-3.5" />
-                            </button>
+                            <>
+                              {/* Integrated Phase 2: Debrief Video Call Trigger */}
+                              <button
+                                id="btn-start-video-call"
+                                onClick={() => {
+                                  setIsVideoCallSuiteOpen(true);
+                                  onTriggerWsLog({
+                                    id: `log_${Date.now()}`,
+                                    timestamp: new Date().toISOString(),
+                                    direction: 'client_to_server',
+                                    event: 'call:initiate_video_hud',
+                                    payload: {
+                                      roomId: activeChat.id,
+                                      participants: ['@alex_gem_sfc', '@luna_wave', '@kai_zen'],
+                                      projectScorecardActive: true
+                                    }
+                                  });
+                                  setStatusMessage("Connecting to Volunteers Debrief Stream...");
+                                  setTimeout(() => setStatusMessage(null), 2500);
+                                }}
+                                className="flex items-center gap-1 text-[8.5px] bg-rose-500/10 border border-rose-500/30 text-rose-300 p-1 px-2 rounded-full hover:bg-rose-500/25 transition-all animate-pulse font-mono cursor-pointer"
+                                title="Start Volunteers Video Call & Scorecard overlay"
+                              >
+                                <Video className="w-3 h-3 text-rose-400" />
+                                <span className="font-bold">CALL DEBRIEF</span>
+                              </button>
+
+                              <button
+                                id="btn-group-settings-cog"
+                                onClick={() => {
+                                  setGroupSettingsName(activeChat.name);
+                                  setGroupSettingsAvatar(activeChat.avatar || '');
+                                  setIsGroupSettingsOpen(true);
+                                }}
+                                className="p-1.5 bg-purple-950/60 border border-purple-500/20 hover:border-purple-400 rounded-xl text-purple-300 hover:text-white transition-all cursor-pointer"
+                                title="Configure Group"
+                              >
+                                <Settings className="w-3.5 h-3.5" />
+                              </button>
+                            </>
                           )}
                           
-                          {/* Short cut to Map view */}
+                          {/* Map-Based Coordination Zone Teleport */}
                           <button 
                             onClick={() => {
                               setActiveTab('explore');
@@ -1265,87 +1761,217 @@ export function ViewportSim({
                                 id: `log_${Date.now()}`,
                                 timestamp: new Date().toISOString(),
                                 direction: 'client_to_server',
-                                event: 'room:teleport_map',
-                                payload: { chatId: activeChat.id }
+                                  event: 'room:teleport_map',
+                                payload: { chatId: activeChat.id, purpose: "Coordinate temporary volunteer zone" }
                               });
+                              setStatusMessage("Teleporting to temporary coordination zone!");
+                              setTimeout(() => setStatusMessage(null), 2000);
                             }}
-                            className="flex items-center gap-1 text-[9px] bg-purple-500/15 border border-purple-500/30 text-purple-300 p-1 px-2 rounded-full hover:bg-purple-500/25 transition-colors font-mono"
+                            className="flex items-center gap-1 text-[9px] bg-purple-500/15 border border-purple-500/35 text-purple-300 p-1 px-2.5 rounded-full hover:bg-purple-500/25 transition-all font-mono"
+                            title="Go to Temporary Coordination Zone on Map"
                           >
-                            <Map className="w-2.5 h-2.5" />
-                            <span>LOC</span>
+                            <Map className="w-2.5 h-2.5 text-fuchsia-400 animate-spin" style={{ animationDuration: '4s' }} />
+                            <span>ZONE</span>
+                          </button>
+
+                          {/* Wallpaper Palette Selector */}
+                          <button 
+                            onClick={() => setIsWallpaperMenuOpen(!isWallpaperMenuOpen)}
+                            className={`p-1.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+                              isWallpaperMenuOpen 
+                                ? 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-300' 
+                                : 'bg-purple-950/60 border-purple-500/20 text-purple-300 hover:text-white hover:border-purple-400'
+                            }`}
+                            title="Customize Chat Wallpaper Aesthetic"
+                          >
+                            <Palette className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
 
-                      {/* Main Message List Drawer */}
-                      <div className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-[#070311]/50 relative">
-                        <div className="flex items-center justify-center my-1">
-                          <span className="bg-purple-950/40 text-[8.5px] text-purple-300 px-3 py-0.5 rounded-full border border-purple-500/15 font-mono">
-                            SOCKET LINK SECURE • SHA-256 SYMMETRIC
-                          </span>
-                        </div>
-
-                        {activeChat.messages.map((msg) => {
-                          const isMe = msg.senderId === CURRENT_USER.id;
-                          return (
-                            <div
-                              key={msg.id}
-                              className={`flex gap-2 max-w-[85%] ${isMe ? 'ml-auto flex-row-reverse' : ''} animate-fade-in`}
+                      {/* Active Wallpaper Selection Popover Overlay */}
+                      {isWallpaperMenuOpen && (
+                        <div className="absolute top-[52px] right-3 w-56 p-3 bg-[#0d071d]/95 backdrop-blur-xl border border-purple-500/30 rounded-2xl shadow-2xl z-40 space-y-2.5 animate-slide-down text-left">
+                          <div className="flex items-center justify-between border-b border-purple-950/40 pb-1.5">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-fuchsia-400 font-mono">Stream Wallpapers</span>
+                            <button 
+                              onClick={() => setIsWallpaperMenuOpen(false)}
+                              className="text-slate-400 hover:text-white text-[9px] font-bold"
                             >
-                              {!isMe && (
-                                <img src={msg.senderAvatar} alt={msg.senderName} className="w-7 h-7 rounded-full object-cover border border-[#22123f] self-end" />
-                              )}
-                              <div className="flex flex-col text-left">
-                                {!isMe && (
-                                  <span className="text-[8.5px] text-slate-500 ml-1 mb-0.5">{msg.senderName}</span>
-                                )}
-                                
-                                {/* Replying to quoted box preview */}
-                                {msg.replyTo && (
-                                  <div className="mb-0.5 p-1.5 px-2 bg-purple-950/50 rounded-lg border-l-2 border-fuchsia-500 text-[8px] text-slate-400 italic flex flex-col gap-0.5 max-w-xs truncate">
-                                    <span className="font-bold text-fuchsia-400 not-italic">@{msg.replyTo.senderName}</span>
-                                    <span>{msg.replyTo.text}</span>
+                              ✕
+                            </button>
+                          </div>
+                          
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                            {Object.entries(WALLPAPER_STYLES).map(([key, style]) => {
+                              const isActive = (chatWallpapers[activeChat.id] || 'default') === key;
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => {
+                                    setChatWallpapers(prev => ({ ...prev, [activeChat.id]: key }));
+                                    onTriggerWsLog({
+                                      id: `log_wp_${Date.now()}`,
+                                      timestamp: new Date().toISOString(),
+                                      direction: 'client_to_server',
+                                      event: 'chat:wallpaper_mutate',
+                                      payload: { chatId: activeChat.id, key, scheme: style.name }
+                                    });
+                                    setIsWallpaperMenuOpen(false);
+                                    setStatusMessage(`Style configured to ${style.name}`);
+                                    setTimeout(() => setStatusMessage(null), 2000);
+                                  }}
+                                  className={`w-full p-2 text-left rounded-xl border text-[10px] transition-all flex items-center justify-between ${
+                                    isActive
+                                      ? 'bg-fuchsia-500/10 border-fuchsia-500 text-fuchsia-300'
+                                      : 'bg-purple-950/30 border-purple-950/40 hover:bg-purple-950/60 text-slate-300 hover:border-purple-800'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="font-extrabold flex items-center gap-1.5">
+                                      <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-fuchsia-400' : 'bg-slate-600'}`} />
+                                      {style.name}
+                                    </div>
+                                    <div className="text-[7.5px] text-slate-500 mt-0.5">{style.description}</div>
                                   </div>
-                                )}
+                                  {isActive && <Check className="w-3 h-3 text-fuchsia-400 shrink-0" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
-                                {/* Message bubble itself */}
-                                <div className={`p-2.5 rounded-2xl text-[10.5px] leading-relaxed shadow-sm transition-all relative ${
-                                  isMe 
-                                    ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-br-none' 
-                                    : 'bg-[#120a24]/80 text-slate-200 border border-purple-950/30 rounded-bl-none'
-                                }`}>
-                                  
-                                  {/* View Once Photo render block */}
-                                  {msg.isViewOnce ? (
-                                    !msg.viewed ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setViewingOnceMediaUrl(msg.mediaUrl || '');
-                                          setViewingOnceMessageId(msg.id);
-                                        }}
-                                        className="flex items-center gap-2 p-2 bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-500 hover:to-rose-450 border border-pink-500/30 rounded-xl text-white font-extrabold text-[10px] shadow-md active:scale-95 transition-transform"
-                                      >
-                                        <Lock className="w-3.5 h-3.5 text-white animate-pulse" />
-                                        <span>👁️ View Once Media (Tap to Open)</span>
-                                      </button>
-                                    ) : (
-                                      <div className="flex items-center gap-2 text-slate-500 font-mono text-[9px] py-1">
-                                        <Unlock className="w-3.5 h-3.5 text-slate-600" />
-                                        <span>Disappearing media burned & evicted</span>
+                      {/* Main Message List Drawer */}
+                      {(() => {
+                        const activeBgStyle = WALLPAPER_STYLES[chatWallpapers[activeChat.id] || 'default'];
+                        return (
+                          <div className={`flex-1 overflow-y-auto p-3.5 space-y-3 relative transition-all duration-500 ${activeBgStyle.bgClass}`}>
+                            <div className="flex items-center justify-center my-1 z-10 relative">
+                              <span className="bg-[#0b0318]/70 text-[8.5px] text-purple-300 px-3 py-0.5 rounded-full border border-purple-500/20 font-mono backdrop-blur-md">
+                                SOCKET LINK SECURE • SHA-256 SYMMETRIC
+                              </span>
+                            </div>
+
+                            {activeChat.messages.map((msg) => {
+                              const isMe = msg.senderId === CURRENT_USER.id;
+                              return (
+                                <div
+                                  key={msg.id}
+                                  className={`flex gap-2 max-w-[85%] ${isMe ? 'ml-auto flex-row-reverse' : ''} animate-fade-in`}
+                                >
+                                  {!isMe && (
+                                    <img src={msg.senderAvatar} alt={msg.senderName} className="w-7 h-7 rounded-full object-cover border border-[#22123f] self-end shadow-sm" />
+                                  )}
+                                  <div className="flex flex-col text-left">
+                                    {!isMe && (
+                                      <span className="text-[8.5px] text-slate-500 ml-1 mb-0.5">{msg.senderName}</span>
+                                    )}
+                                    
+                                    {/* Replying to quoted box preview */}
+                                    {msg.replyTo && (
+                                      <div className="mb-0.5 p-1.5 px-2 bg-purple-950/50 rounded-lg border-l-2 border-fuchsia-500 text-[8px] text-slate-400 italic flex flex-col gap-0.5 max-w-xs truncate">
+                                        <span className="font-bold text-fuchsia-400 not-italic">@{msg.replyTo.senderName}</span>
+                                        <span>{msg.replyTo.text}</span>
                                       </div>
-                                    )
-                                  ) : (
-                                    <div>
-                                      {msg.mediaUrl && (
-                                        <div className="mb-1.5 rounded-xl overflow-hidden border border-purple-950 max-w-[190px]">
-                                          <img src={msg.mediaUrl} alt="Attached attachment" className="w-full h-24 object-cover" />
+                                    )}
+
+                                    {/* Message bubble itself */}
+                                    <div className={`p-2.5 rounded-2xl text-[10.5px] leading-relaxed shadow-sm transition-all relative ${
+                                      isMe 
+                                        ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-br-none' 
+                                        : `${activeBgStyle.textCard} rounded-bl-none`
+                                    }`}>
+                                      
+                                      {/* View Once Photo render block */}
+                                      {msg.isViewOnce ? (
+                                        !msg.viewed ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setViewingOnceMediaUrl(msg.mediaUrl || '');
+                                              setViewingOnceMessageId(msg.id);
+                                            }}
+                                            className="flex items-center gap-2 p-2 bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-500 hover:to-rose-450 border border-pink-500/30 rounded-xl text-white font-extrabold text-[10px] shadow-md active:scale-95 transition-transform"
+                                          >
+                                            <Lock className="w-3.5 h-3.5 text-white animate-pulse" />
+                                            <span>👁️ View Once Media (Tap to Open)</span>
+                                          </button>
+                                        ) : (
+                                          <div className="flex items-center gap-2 text-slate-500 font-mono text-[9px] py-1">
+                                            <Unlock className="w-3.5 h-3.5 text-slate-600" />
+                                            <span>Disappearing media burned & evicted</span>
+                                          </div>
+                                        )
+                                      ) : (
+                                        <div>
+                                          {msg.mediaUrl && msg.mediaType !== 'audio' && (
+                                            <div className="mb-1.5 rounded-xl overflow-hidden border border-purple-950 max-w-[190px]">
+                                              <img src={msg.mediaUrl} alt="Attached attachment" className="w-full h-24 object-cover" />
+                                            </div>
+                                          )}
+                                          
+                                          {msg.mediaType === 'audio' ? (
+                                            <div className="flex flex-col gap-1 w-44 text-left py-0.5">
+                                              <div className="flex items-center gap-2 text-slate-200">
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (playingAudioId === msg.id) {
+                                                      setPlayingAudioId(null);
+                                                    } else {
+                                                      setPlayingAudioId(msg.id);
+                                                      onTriggerWsLog({
+                                                        id: `log_audio_${Date.now()}`,
+                                                        timestamp: new Date().toISOString(),
+                                                        direction: 'client_to_server',
+                                                        event: 'chat:audio_playback',
+                                                        payload: { chatId: activeChat.id, msgId: msg.id, duration: msg.audioDuration || 6 }
+                                                      });
+                                                    }
+                                                  }}
+                                                  className="w-7.5 h-7.5 rounded-full bg-fuchsia-500 hover:bg-fuchsia-400 text-white flex items-center justify-center shrink-0 shadow active:scale-90 transition-transform cursor-pointer"
+                                                  title="Play Voice Message"
+                                                >
+                                                  {playingAudioId === msg.id ? (
+                                                    <Pause className="w-3 h-3 text-white fill-white" />
+                                                  ) : (
+                                                    <Play className="w-3 h-3 text-white fill-white ml-0.5" />
+                                                  )}
+                                                </button>
+                                                
+                                                {/* Audio waves */}
+                                                <div className="flex-1 flex items-end gap-[2px] h-6 px-1 font-mono">
+                                                  {[16, 28, 48, 20, 64, 40, 75, 30, 52, 22, 60, 26, 44, 12, 5].map((h, i) => {
+                                                    const progress = audioPlayProgress[msg.id] || 0;
+                                                    const isPlayed = (i / 15) * 100 < progress;
+                                                    return (
+                                                      <div 
+                                                        key={i} 
+                                                        style={{ height: `${h}%` }}
+                                                        className={`w-[3px] rounded-full transition-all duration-150 ${isPlayed ? 'bg-fuchsia-400' : 'bg-slate-500/40'}`}
+                                                      />
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                              <div className="flex items-center justify-between text-[7px] font-mono pl-1">
+                                                <span className={`${activeBgStyle.accentColor} font-bold`}>🎙️ peer voice packet</span>
+                                                <span className="text-slate-400 font-mono">
+                                                  {playingAudioId === msg.id 
+                                                    ? `${Math.floor(((audioPlayProgress[msg.id] || 0) / 100) * (msg.audioDuration || 6))}s` 
+                                                    : `0:${String(msg.audioDuration || 6).padStart(2, '0')}`}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <span style={{ wordBreak: 'break-word' }}>{msg.text}</span>
+                                          )}
                                         </div>
                                       )}
-                                      <span>{msg.text}</span>
                                     </div>
-                                  )}
-                                </div>
 
                                 {/* Timer / Expire Countdown clocks */}
                                 {msg.expiresAt && (
@@ -1480,6 +2106,8 @@ export function ViewportSim({
                         })}
                         <div ref={messagesEndRef} />
                       </div>
+                    );
+                  })()}
 
                       {/* Floating Attachment / Disappearing Settings Console & Replies context preview */}
                       <div className="px-3 py-1.5 bg-[#090412] border-t border-purple-950/40 flex flex-col gap-1.5 relative shrink-0">
@@ -1584,20 +2212,101 @@ export function ViewportSim({
 
                       {/* Input controls bottom */}
                       <form id="chat-input-form-viewport" onSubmit={handleSendMessageSubmit} className="p-3 bg-[#0a0515]/95 border-t border-purple-950/50 shrink-0 flex items-center gap-2 relative">
-                        <input
-                          type="text"
-                          value={messageText}
-                          onChange={(e) => setMessageText(e.target.value)}
-                          placeholder={isViewOnceSelected ? "Add a caption to view-once media..." : "Send encrypted message packet..."}
-                          className="flex-1 bg-[#120a24]/90 border border-purple-900/30 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-slate-550 outline-none font-sans"
-                        />
-                        <button
-                          type="submit"
-                          id="btn-chat-send-viewport"
-                          className="p-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl shadow-md hover:scale-103 active:scale-95 transition-all outline-none"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                        </button>
+                        {isRecordingAudio ? (
+                          <div className="flex-1 flex items-center justify-between bg-[#19092c] border border-red-500/30 rounded-xl px-3 py-1.5 text-xs text-white outline-none font-sans animate-pulse">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
+                              <span className="text-red-400 font-bold font-mono uppercase text-[9.5px] tracking-wider">SECURE_VOICE RECORDING :</span>
+                              <span className="font-mono text-[10px] text-slate-100 font-bold">{`0:${String(audioRecordingSecs).padStart(2, '0')}`}</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {/* Cancel / Bin Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsRecordingAudio(false);
+                                  setAudioRecordingSecs(0);
+                                  onTriggerWsLog({
+                                    id: `log_audio_cancel_${Date.now()}`,
+                                    timestamp: new Date().toISOString(),
+                                    direction: 'client_to_server',
+                                    event: 'chat:audio_cancelled',
+                                    payload: { chatId: activeChat.id }
+                                  });
+                                }}
+                                className="text-slate-400 hover:text-red-400 p-1 rounded-lg cursor-pointer transition-colors"
+                                title="Cancel Recording"
+                              >
+                                <Trash className="w-4 h-4" />
+                              </button>
+                              
+                              {/* Stop & Send Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const durationVal = audioRecordingSecs || 6;
+                                  onSendMessage(activeChat.id, `🎙️ Secure Voice Note (${durationVal}s)`, {
+                                    mediaType: 'audio',
+                                    audioDuration: durationVal
+                                  });
+                                  setIsRecordingAudio(false);
+                                  setAudioRecordingSecs(0);
+                                  onTriggerWsLog({
+                                    id: `log_audio_sent_${Date.now()}`,
+                                    timestamp: new Date().toISOString(),
+                                    direction: 'client_to_server',
+                                    event: 'chat:audio_broadcast',
+                                    payload: { chatId: activeChat.id, duration: durationVal }
+                                  });
+                                }}
+                                className="bg-red-500 hover:bg-red-400 text-white font-extrabold text-[8px] tracking-wider uppercase font-mono px-2.5 py-1 rounded-lg flex items-center gap-1 active:scale-95 transition-transform cursor-pointer"
+                              >
+                                <Mic className="w-3 h-3 text-white" />
+                                <span>BROADCAST</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <input
+                              type="text"
+                              value={messageText}
+                              onChange={(e) => setMessageText(e.target.value)}
+                              placeholder={isViewOnceSelected ? "Add a caption to view-once media..." : "Send encrypted message packet..."}
+                              className="flex-1 bg-[#120a24]/90 border border-purple-900/30 focus:border-purple-600 focus:ring-1 focus:ring-purple-600 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none font-sans"
+                            />
+                            
+                            {messageText.trim() ? (
+                              <button
+                                type="submit"
+                                id="btn-chat-send-viewport"
+                                className="p-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl shadow-md hover:scale-103 active:scale-95 transition-all outline-none cursor-pointer"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsRecordingAudio(true);
+                                  setAudioRecordingSecs(0);
+                                  onTriggerWsLog({
+                                    id: `log_audio_start_${Date.now()}`,
+                                    timestamp: new Date().toISOString(),
+                                    direction: 'client_to_server',
+                                    event: 'chat:audio_record_init',
+                                    payload: { chatId: activeChat.id, source: "Secure Device Mic (WebOS)" }
+                                  });
+                                }}
+                                className="p-2.5 bg-rose-600/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/25 rounded-xl shadow-md hover:scale-103 active:scale-95 transition-all outline-none cursor-pointer"
+                                title="Record Voice Message"
+                              >
+                                <Mic className="w-3.5 h-3.5 animate-pulse" />
+                              </button>
+                            )}
+                          </>
+                        )}
                       </form>
                     </div>
                   )
@@ -1883,6 +2592,23 @@ export function ViewportSim({
                     </div>
                     <span className="text-[10px] font-bold text-slate-200">Draw Location Pin</span>
                     <span className="text-[8px] text-slate-500">Local event marker</span>
+                  </button>
+
+                  <button
+                    id="btn-proof-impact-curator"
+                    onClick={() => {
+                      setIsProofEditorOpen(true);
+                      setIsGemMenuOpen(false);
+                    }}
+                    className="col-span-2 p-3.5 bg-gradient-to-br from-[#1b103c] to-[#0c0716] border border-fuchsia-500/30 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-800/80 hover:border-fuchsia-500/60 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <div className="p-1.5 rounded-lg bg-fuchsia-500/20 text-fuchsia-400">
+                      <Sparkles className="w-4 h-4 animate-pulse" />
+                    </div>
+                    <div className="text-left">
+                      <span className="text-[10px] font-black text-slate-100 block uppercase tracking-wider">📐 CURATE PROOF OF IMPACT</span>
+                      <span className="text-[8px] text-fuchsia-300">Publish high-fidelity images with custom editing sliders</span>
+                    </div>
                   </button>
                 </div>
 
@@ -2430,6 +3156,458 @@ export function ViewportSim({
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-white text-xs shadow-md shadow-pink-950/50 hover:opacity-90 transition-opacity"
                 >
                   Apply Sync
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* PHASE 3: PROOF-OF-IMPACT IMAGE CURATOR & SLIDER EDITOR */}
+        <AnimatePresence>
+          {isProofEditorOpen && (
+            <motion.div
+              key="proof-editor-overlay"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="absolute inset-0 bg-[#060312] z-50 flex flex-col justify-between"
+            >
+              {/* Header */}
+              <div className="p-4 bg-gradient-to-b from-[#0e0921] to-[#060312] border-b border-purple-950/50 shrink-0 flex items-center justify-between">
+                <div className="flex flex-col text-left">
+                  <span className="text-[10px] font-black text-fuchsia-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 animate-pulse text-fuchsia-500" />
+                    Proof-Of-Impact Curator
+                  </span>
+                  <span className="text-[8px] text-slate-500 font-mono">Micro-filter Calibration Engine</span>
+                </div>
+                <button
+                  onClick={() => setIsProofEditorOpen(false)}
+                  className="p-1 px-1.5 bg-purple-950 text-slate-400 hover:text-white rounded-md border border-purple-500/10 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 text-left scrollbar-thin">
+                {/* Visual Preset Selection Strip */}
+                <div className="space-y-1.5">
+                  <label className="text-[8.5px] text-slate-400 font-mono uppercase tracking-widest block font-bold">1. Select Impact Snapshot</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { name: 'Micro roast', url: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=300&auto=format&fit=crop&q=80', tag: 'SOMA Roast' },
+                      { name: 'Community harvest', url: 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=300&auto=format&fit=crop&q=80', tag: 'Urban Garden' },
+                      { name: 'Calibration talk', url: 'https://images.unsplash.com/photo-1475503572774-15a45e5d60b9?w=300&auto=format&fit=crop&q=80', tag: 'Tasting Hub' }
+                    ].map((preset, pIdx) => (
+                      <button
+                        key={pIdx}
+                        onClick={() => {
+                          setProofSelectedImg(preset.url);
+                          setStatusMessage(`Switched snapshot to: ${preset.tag}`);
+                          setTimeout(() => setStatusMessage(null), 1500);
+                        }}
+                        className={`relative rounded-xl overflow-hidden aspect-video border-2 transition-all ${
+                          proofSelectedImg === preset.url ? 'border-fuchsia-400 scale-105 shadow-md shadow-fuchsia-500/20' : 'border-purple-950 opacity-60'
+                        }`}
+                      >
+                        <img src={preset.url} className="w-full h-full object-cover" />
+                        <span className="absolute inset-x-0 bottom-0 bg-black/70 text-[7px] text-slate-300 font-mono text-center truncate px-0.5 py-px">{preset.tag}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Main Interactive Canvas Preview */}
+                <div className="space-y-1.5">
+                  <label className="text-[8.5px] text-slate-400 font-mono uppercase tracking-widest block font-bold">2. Interactive CSS Sliders</label>
+                  <div className="relative rounded-2xl overflow-hidden border border-purple-950 aspect-video bg-[#05020c] flex items-center justify-center">
+                    <img
+                      src={proofSelectedImg}
+                      alt="Calibration Image"
+                      className="w-full h-full object-cover transition-all"
+                      style={{
+                        filter: `brightness(${proofEditorBrightness}%) contrast(${proofEditorContrast}%) saturate(${proofEditorSaturation}%)`
+                      }}
+                    />
+                    <div className="absolute top-2 left-2 bg-black/75 backdrop-blur border border-purple-500/10 px-2 py-0.5 rounded-full text-[7.5px] font-mono text-fuchsia-400">
+                      LIVE RENDER ENGINE
+                    </div>
+                  </div>
+                </div>
+
+                {/* Built-in Sliders */}
+                <div className="p-3 bg-[#120a24]/50 border border-purple-950/40 rounded-2xl space-y-3 font-mono text-[9px]">
+                  {/* Brightness */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-slate-400">
+                      <span>Brightness (Exposure)</span>
+                      <span className="text-fuchsia-400 font-bold">{proofEditorBrightness}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50"
+                      max="150"
+                      value={proofEditorBrightness}
+                      onChange={(e) => setProofEditorBrightness(Number(e.target.value))}
+                      className="w-full accent-fuchsia-500 h-1 bg-purple-950 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Contrast */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-slate-400">
+                      <span>Contrast Correction</span>
+                      <span className="text-fuchsia-400 font-bold">{proofEditorContrast}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50"
+                      max="150"
+                      value={proofEditorContrast}
+                      onChange={(e) => setProofEditorContrast(Number(e.target.value))}
+                      className="w-full accent-fuchsia-500 h-1 bg-purple-950 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Saturation */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-slate-400">
+                      <span>Saturation Bloom</span>
+                      <span className="text-fuchsia-400 font-bold">{proofEditorSaturation}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50"
+                      max="150"
+                      value={proofEditorSaturation}
+                      onChange={(e) => setProofEditorSaturation(Number(e.target.value))}
+                      className="w-full accent-fuchsia-500 h-1 bg-purple-950 rounded-lg cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* Milestone & Caption info */}
+                <div className="space-y-3 font-sans">
+                  <div className="flex flex-col gap-1 text-left">
+                    <label className="text-[8.5px] text-slate-400 font-mono uppercase tracking-widest font-bold">3. Tag Project Milestone</label>
+                    <select
+                      value={proofSelectedMilestone}
+                      onChange={(e) => setProofSelectedMilestone(e.target.value)}
+                      className="bg-[#120a24]/90 border border-purple-950 text-xs text-slate-200 p-2 rounded-xl focus:border-fuchsia-500/50 outline-none cursor-pointer"
+                    >
+                      <option value="Completed Milestone 2: Coordinate Volunteers">Completed Milestone 2: Coordinate Volunteers</option>
+                      <option value="Completed Milestone 3: Roast Tasting Session">Completed Milestone 3: Roast Tasting Session</option>
+                      <option value="Completed Milestone 1: Equipment Procurement">Completed Milestone 1: Equipment Procurement</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1 text-left">
+                    <label className="text-[8.5px] text-slate-400 font-mono uppercase tracking-widest font-bold">4. Curator Notes</label>
+                    <textarea
+                      value={proofEditorCaption}
+                      onChange={(e) => setProofEditorCaption(e.target.value)}
+                      rows={2}
+                      className="bg-[#120a24]/90 border border-purple-950 text-xs text-white p-2.5 rounded-xl resize-none focus:border-fuchsia-500/50 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions footer */}
+              <div className="p-4 bg-[#05020c] border-t border-purple-950/50 flex gap-2 shrink-0 font-sans font-bold">
+                <button
+                  type="button"
+                  onClick={() => setIsProofEditorOpen(false)}
+                  className="flex-1 py-3 bg-[#120a24] text-slate-400 hover:text-white rounded-xl border border-purple-950 hover:bg-slate-900 transition-colors text-xs"
+                >
+                  Discard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newId = `proof_${Date.now()}`;
+                    const newPost = {
+                      id: newId,
+                      author: 'Alex Rivera',
+                      username: '@alex_gem_sfc',
+                      avatar: CURRENT_USER.avatar,
+                      imgUrl: proofSelectedImg,
+                      caption: proofEditorCaption,
+                      milestone: proofSelectedMilestone,
+                      brightness: proofEditorBrightness,
+                      contrast: proofEditorContrast,
+                      saturation: proofEditorSaturation,
+                      likes: 12,
+                      hasLiked: false,
+                      timestamp: 'Just now'
+                    };
+
+                    setProofPosts(prev => [newPost, ...prev]);
+
+                    setTotalGEMSGenerated(prev => prev + 125);
+                    setCuratorLevel(prev => prev + 1);
+                    setProjectMilestoneProgress(prev => {
+                      if (proofSelectedMilestone.includes('Milestone 2')) return 85;
+                      if (proofSelectedMilestone.includes('Milestone 3')) return 100;
+                      return prev;
+                    });
+
+                    onTriggerWsLog({
+                      id: `log_${Date.now()}`,
+                      timestamp: new Date().toISOString(),
+                      direction: 'client_to_server',
+                      event: 'proof:publish_milestone',
+                      payload: {
+                        postId: newId,
+                        spatialVectors: { lat: 37.7749, lng: -122.4194, zone: 'SOMA' },
+                        imageFilters: { b: proofEditorBrightness, c: proofEditorContrast, s: proofEditorSaturation },
+                        milestoneTag: proofSelectedMilestone,
+                        gemsAwarded: 125,
+                        curatorLevelAdvance: true
+                      }
+                    });
+
+                    setStatusMessage("🚀 Proof-of-Impact Distributed! Curator level advanced & dashboard synced.");
+                    setTimeout(() => setStatusMessage(null), 3000);
+
+                    setIsProofEditorOpen(false);
+                    setActiveTab('feed');
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:opacity-95 text-white rounded-xl shadow-lg shadow-purple-950/50 transition-transform active:scale-[0.98] text-xs"
+                >
+                  🚀 Publish & Sync Dash
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* PHASE 2: IMMERSIVE VIDEO CALL & SCORECARD OVERLAY */}
+        <AnimatePresence>
+          {isVideoCallSuiteOpen && (
+            <motion.div
+              key="video-call-overlay"
+              initial={{ scale: 1.1, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="absolute inset-0 bg-[#070312] z-50 flex flex-col justify-between p-4"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between z-10 shrink-0 bg-[#0e0921]/40 p-2.5 rounded-2xl border border-purple-950/20">
+                <div className="flex items-center gap-1.5 text-left font-sans">
+                  <div className="w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-rose-400 font-mono uppercase tracking-widest leading-none">DEBRIEF_STREAM://LIVE</span>
+                    <span className="text-[7.5px] text-slate-500 font-mono mt-0.5">Encrypted volunteers link - 4 Nodes Online</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsVideoCallSuiteOpen(false)}
+                  className="p-1 px-2.5 bg-rose-950/80 text-rose-200 border border-rose-500/10 hover:bg-rose-900 rounded-xl font-mono text-[9px] font-extrabold cursor-pointer"
+                >
+                  END CALL
+                </button>
+              </div>
+
+              {/* Split Video Canvas screen */}
+              <div className="flex-1 my-3 overflow-hidden flex flex-col gap-2 relative">
+                {videoCallMode === 'normal_split' ? (
+                  <div className="grid grid-cols-2 gap-2 h-full">
+                    {/* Frame 1: Alex (Self) */}
+                    <div className="bg-[#120a24] rounded-2xl overflow-hidden border-2 border-fuchsia-500/30 relative shadow-inner">
+                      <img src={CURRENT_USER.avatar} className="w-full h-full object-cover saturate-110" />
+                      <div className="absolute bottom-2 left-2 bg-black/60 px-1.5 py-0.5 rounded text-[8px] font-mono text-slate-300">
+                        Alex Rivera (You)
+                      </div>
+                      <div className="absolute top-2 right-2 p-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[6.5px] font-mono border border-emerald-500/30 animate-pulse">
+                        SND-TX
+                      </div>
+                    </div>
+
+                    {/* Frame 2: Sarah L (Organizer) */}
+                    <div className="bg-[#120a24] rounded-2xl overflow-hidden border border-purple-950/50 relative shadow-inner">
+                      <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80" className="w-full h-full object-cover saturate-[1.12]" />
+                      <div className="absolute bottom-2 left-2 bg-black/60 px-1.5 py-0.5 rounded text-[8px] font-mono text-slate-300">
+                        Sarah L.
+                      </div>
+                      <div className="absolute top-2 right-2 p-0.5 rounded bg-fuchsia-500/20 text-fuchsia-400 text-[6.5px] font-mono border border-fuchsia-500/30 animate-pulse">
+                        REC-RX
+                      </div>
+                    </div>
+
+                    {/* Frame 3: Liam K (Live track coordinate) */}
+                    <div className="bg-[#120a24] rounded-2xl overflow-hidden border border-purple-950/50 relative shadow-inner">
+                      <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80" className="w-full h-full object-cover saturate-110" />
+                      <div className="absolute bottom-2 left-2 bg-black/60 px-1.5 py-0.5 rounded text-[8px] font-mono text-slate-300">
+                        Liam K.
+                      </div>
+                    </div>
+
+                    {/* Frame 4: Jordan P */}
+                    <div className="bg-[#120a24] rounded-2xl overflow-hidden border border-purple-950/50 relative shadow-inner">
+                      <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80" className="w-full h-full object-cover saturate-110" />
+                      <div className="absolute bottom-2 left-2 bg-black/60 px-1.5 py-0.5 rounded text-[8px] font-mono text-slate-300">
+                        Jordan P.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Debrief Split View with the Edited Proof-of-Impact Image! */
+                  <div className="flex flex-col h-full gap-2 text-left">
+                    {/* Tiny video row */}
+                    <div className="grid grid-cols-4 gap-1.5 shrink-0 h-[65px]">
+                      {[
+                        { name: 'Alex', avatar: CURRENT_USER.avatar },
+                        { name: 'Sarah', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
+                        { name: 'Liam', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80' },
+                        { name: 'Jordan', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80' }
+                      ].map((v, vIdx) => (
+                        <div key={vIdx} className="bg-[#120a24] border border-purple-500/20 rounded-xl overflow-hidden relative">
+                          <img src={v.avatar} className="w-full h-full object-cover saturate-110" />
+                          <span className="absolute bottom-1 left-1 text-[6.5px] bg-black/60 text-slate-300 px-1 rounded truncate max-w-full font-mono">{v.name}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Proof-of-Impact Highlight Review and Close-the-Loop */}
+                    <div className="flex-1 bg-[#120a24]/60 border border-purple-950/80 rounded-2xl p-3 flex flex-col justify-between overflow-y-auto scrollbar-none gap-2">
+                      <div className="space-y-1.5 font-sans">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[8px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.2 rounded-md font-mono font-bold">MILESTONE VERIFIED PROOF</span>
+                          <span className="text-[8.5px] text-fuchsia-400 font-mono font-black">{projectMilestoneProgress}% METRIC</span>
+                        </div>
+                        
+                        <div className="aspect-video rounded-xl overflow-hidden border border-purple-950 relative">
+                          <img 
+                            src={proofSelectedImg} 
+                            alt="Curated result" 
+                            className="w-full h-full object-cover" 
+                            style={{ filter: `brightness(${proofEditorBrightness}%) contrast(${proofEditorContrast}%) saturate(${proofEditorSaturation}%)` }}
+                          />
+                          <div className="absolute bottom-2 left-2 right-2 bg-black/70 p-1.5 rounded-lg border border-purple-500/10">
+                            <p className="text-[9px] text-white font-medium leading-none">"{proofEditorCaption}"</p>
+                            <span className="text-[7.5px] text-fuchsia-300 font-mono mt-0.5 block">{proofSelectedMilestone}</span>
+                          </div>
+                        </div>
+
+                        <div className="p-2 bg-[#05020c] rounded-xl border border-purple-950/40 text-[8.5px] text-slate-300 leading-relaxed">
+                          <p className="font-semibold text-slate-200">Sarah L: "Excellent calibration result! Live feedback aligns. Let's archive this on-chain."</p>
+                        </div>
+                      </div>
+
+                      {/* ARCHIVING REENGAGEMENT BUTTON */}
+                      <button
+                        onClick={() => {
+                          setIsLegacySaved(true);
+                          setTotalGEMSGenerated(prev => prev + 250);
+                          setStatusMessage("⭐ Saved as Legacy Gem Template! Archived for SOMA Roasters.");
+                          
+                          onTriggerWsLog({
+                            id: `log_${Date.now()}`,
+                            timestamp: new Date().toISOString(),
+                            direction: 'client_to_server',
+                            event: 'reengage:save_legacy_gem',
+                            payload: {
+                              project: 'Local Roasters Meetup',
+                              originalVols: ['@luna_wave', '@kai_zen', '@alex_gem'],
+                              archivedMetadata: {
+                                milestoneMet: 'Completed Milestones 1, 2 & 3',
+                                creatorLevelReached: curatorLevel,
+                                finalImpactRating: 'Excellent 1.4k Gems'
+                              }
+                            }
+                          });
+
+                          setTimeout(() => setStatusMessage(null), 2500);
+                        }}
+                        className={`w-full py-2 bg-gradient-to-r ${isLegacySaved ? 'from-purple-950 to-indigo-950 border border-purple-800' : 'from-fuchsia-500 to-indigo-500'} text-white rounded-xl text-[9px] font-mono tracking-wider font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer`}
+                      >
+                        <Gem className="w-3.5 h-3.5 animate-bounce text-pink-300 fill-fuchsia-500/20" />
+                        <span>{isLegacySaved ? '⭐ ALREADY SAVED TO LEGACY RETENTION ARCHIVE' : '⭐ SAVE ENTIRE PROJECT AS LEGACY GEM TEMPLATE'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* PROJECT SCORECARD HUD OVERLAY */}
+                <div id="video-scorecard-dock" className="absolute bottom-2 left-2 right-2 bg-slate-900/90 backdrop-blur-md border border-purple-500/30 p-2.5 rounded-2xl text-left shadow-2xl flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <Gem className="w-3 h-3 text-pink-400 animate-spin" />
+                      <span className="text-[10px] font-black text-slate-200 uppercase font-sans tracking-wide">Micro Core Scorecard</span>
+                    </div>
+                    <span className="text-[8px] bg-purple-950 border border-purple-500/20 text-purple-300 px-1.5 rounded font-mono">ACTIVE TELEMETRY</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 border-t border-purple-950/40 pt-1.5 font-mono text-[8px] text-slate-400">
+                    <div className="text-left font-sans">
+                      <span>Curator lvl</span>
+                      <p className="text-[10px] font-black text-fuchsia-400 font-mono">Level {curatorLevel}</p>
+                    </div>
+                    <div className="text-left border-x border-purple-950/20 px-2 font-sans">
+                      <span>Milestone</span>
+                      <p className="text-[10px] font-black text-indigo-400 font-mono">{projectMilestoneProgress}%</p>
+                    </div>
+                    <div className="text-left font-sans">
+                      <span>Staked Gems</span>
+                      <p className="text-[10px] font-black text-emerald-400 font-mono">{totalGEMSGenerated}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-purple-950/40 pt-1.5">
+                    <span className="text-[7.5px] text-slate-400 font-mono">Simulate user engagement pulse:</span>
+                    <button
+                      onClick={() => {
+                        setTotalGEMSGenerated(prev => prev + 15);
+                        setStatusMessage("Pulsed +15 GEMS interest telemetry event stream!");
+                        
+                        onTriggerWsLog({
+                          id: `log_${Date.now()}`,
+                          timestamp: new Date().toISOString(),
+                          direction: 'client_to_server',
+                          event: 'scorecard:spark_interest',
+                          payload: { liveGemsStakeCount: totalGEMSGenerated + 15 }
+                        });
+
+                        setTimeout(() => setStatusMessage(null), 2500);
+                      }}
+                      className="p-1 px-2.5 bg-[#120a24] border border-purple-500/25 hover:bg-purple-900 text-fuchsia-400 hover:text-white rounded-lg font-mono text-[7px] font-black active:scale-95 transition-all text-center cursor-pointer"
+                    >
+                      + IGNITE ENGAGEMENT
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* FOOTER ACTIONS MODES CONTROLLER */}
+              <div className="grid grid-cols-2 gap-2 p-2 bg-[#05020c] border-t border-purple-950/40 font-mono text-[9px] text-slate-300 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVideoCallMode('normal_split');
+                    setStatusMessage("Switched View to Face Frame Sockets");
+                    setTimeout(() => setStatusMessage(null), 1500);
+                  }}
+                  className={`py-2 rounded-xl border transition-all cursor-pointer ${
+                    videoCallMode === 'normal_split' ? 'bg-purple-950 border-fuchsia-500 text-white font-black shadow' : 'bg-slate-900/20 border-purple-950 text-slate-500 hover:text-white'
+                  }`}
+                >
+                  Face Sockets Grid
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVideoCallMode('comms_debrief');
+                    setStatusMessage("Switched to Closing the Loop Debrief Module");
+                    setTimeout(() => setStatusMessage(null), 1500);
+                  }}
+                  className={`py-2 rounded-xl border transition-all cursor-pointer ${
+                    videoCallMode === 'comms_debrief' ? 'bg-purple-950 border-fuchsia-500 text-white font-black shadow' : 'bg-slate-900/20 border-purple-950 text-slate-500 hover:text-white'
+                  }`}
+                >
+                  Closing-the-Loop Debrief
                 </button>
               </div>
             </motion.div>

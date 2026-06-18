@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ViewportSim } from './components/ViewportSim';
 import { ArchitectBoard } from './components/ArchitectBoard';
+import { UnifiedDashboard } from './components/UnifiedDashboard';
 import { 
   INITIAL_CHATS, 
   INITIAL_STORIES, 
@@ -28,7 +29,9 @@ export default function App() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   
   // Tab control for mobile view responsive stacking
-  const [activeLayoutCol, setActiveLayoutCol] = useState<'both' | 'sim' | 'spec'>('both');
+  const [activeLayoutCol, setActiveLayoutCol] = useState<'showcase' | 'dashboard' | 'both' | 'sim' | 'spec'>('showcase');
+
+  const [projectMilestoneProgress, setProjectMilestoneProgress] = useState<number>(75);
 
   // WebSocket Log telemetry triggers
   const [wsLogs, setWsLogs] = useState<WsLogEntry[]>([
@@ -69,7 +72,8 @@ export default function App() {
     options?: {
       isViewOnce?: boolean;
       mediaUrl?: string;
-      mediaType?: 'image' | 'video';
+      mediaType?: 'image' | 'video' | 'audio';
+      audioDuration?: number;
       expiresAt?: string;
       replyTo?: { id: string; senderName: string; text: string };
     }
@@ -90,6 +94,7 @@ export default function App() {
       viewed: false,
       mediaUrl: options?.mediaUrl,
       mediaType: options?.mediaType,
+      audioDuration: options?.audioDuration,
       expiresAt: options?.expiresAt,
       replyTo: options?.replyTo,
       reactions: []
@@ -428,6 +433,51 @@ export default function App() {
     });
   };
 
+  const handleCreateNewChat = (username: string, name: string, avatar: string): string => {
+    const existing = chats.find(c => c.type === '1:1' && c.name === name);
+    if (existing) {
+      setActiveChatId(existing.id);
+      return existing.id;
+    }
+
+    const newChatId = `chat_${Date.now()}`;
+    const newChat: ChatThread = {
+      id: newChatId,
+      name,
+      avatar,
+      type: '1:1',
+      members: ['user_me', username],
+      unreadCount: 0,
+      lastMessageTimestamp: new Date().toISOString(),
+      messages: [
+        {
+          id: `msg_welcome_${Date.now()}`,
+          chatId: newChatId,
+          senderId: 'user_me',
+          senderName: CURRENT_USER.name,
+          senderAvatar: CURRENT_USER.avatar,
+          text: `🔐 Secure verification handshake established with @${username}. Keys synchronized over peer link.`,
+          timestamp: new Date().toISOString(),
+          status: 'sent',
+          reactions: []
+        }
+      ]
+    };
+
+    setChats(prev => [newChat, ...prev]);
+    setActiveChatId(newChatId);
+    
+    addWsLog({
+      id: `log_${Date.now()}_create_chat`,
+      timestamp: new Date().toISOString(),
+      direction: 'client_to_server',
+      event: 'chat:create',
+      payload: { chatId: newChatId, peer: username, encryption: 'KDF_AES256' }
+    });
+
+    return newChatId;
+  };
+
   // 2. Action: Post New Ephemeral Story
   const handlePostStory = (content: string, bg: string, location?: string, isCloseFriendsOnly?: boolean) => {
     const timestampStr = new Date().toISOString();
@@ -600,14 +650,36 @@ export default function App() {
         </div>
 
         {/* Action Toggle buttons for smaller responsive layout columns */}
-        <div className="flex items-center gap-1.5 bg-[#080410]/95 border border-purple-950/60 p-1 rounded-xl shadow-md">
+        <div className="flex items-center gap-1.5 bg-[#080410]/95 border border-purple-950/60 p-1 rounded-xl shadow-md overflow-x-auto max-w-full">
+          <button
+            id="view-toggle-showcase"
+            onClick={() => setActiveLayoutCol('showcase')}
+            className={`px-3 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+              activeLayoutCol === 'showcase' 
+                ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(147,51,234,0.35)]' 
+                : 'text-slate-400 hover:text-slate-200 hover:bg-purple-950/20'
+            }`}
+          >
+            🌟 Premium Showcase
+          </button>
+          <button
+            id="view-toggle-dashboard"
+            onClick={() => setActiveLayoutCol('dashboard')}
+            className={`px-3 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+              activeLayoutCol === 'dashboard' 
+                ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(147,51,234,0.35)]' 
+                : 'text-slate-400 hover:text-slate-200 hover:bg-purple-900/20'
+            }`}
+          >
+            🔥 HUD Dashboard
+          </button>
           <button
             id="view-toggle-both"
             onClick={() => setActiveLayoutCol('both')}
-            className={`px-3 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${
+            className={`px-3 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
               activeLayoutCol === 'both' 
                 ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(147,51,234,0.35)]' 
-                : 'text-slate-400 hover:text-slate-200 hover:bg-purple-950/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-purple-900/20'
             }`}
           >
             Dual split spec
@@ -615,10 +687,10 @@ export default function App() {
           <button
             id="view-toggle-sim"
             onClick={() => setActiveLayoutCol('sim')}
-            className={`px-3 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${
+            className={`px-3 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
               activeLayoutCol === 'sim' 
                 ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(147,51,234,0.35)]' 
-                : 'text-slate-400 hover:text-slate-200 hover:bg-purple-950/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-purple-900/20'
             }`}
           >
             Prototype App
@@ -626,66 +698,244 @@ export default function App() {
           <button
             id="view-toggle-spec"
             onClick={() => setActiveLayoutCol('spec')}
-            className={`px-3 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${
+            className={`px-3 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
               activeLayoutCol === 'spec' 
                 ? 'bg-purple-600 text-white shadow-[0_0_10px_rgba(147,51,234,0.35)]' 
-                : 'text-slate-400 hover:text-slate-200 hover:bg-purple-950/20'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-purple-900/20'
             }`}
           >
-            MERN Specifications
+            MERN Specs
           </button>
         </div>
       </header>
 
-      {/* Main split display columns layout */}
-      <main id="app-workspace-body" className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start overflow-hidden">
-        
-        {/* COL 1: HIGH FIDELITY GM LIVE SIMULATOR APP */}
-        {(activeLayoutCol === 'both' || activeLayoutCol === 'sim') && (
-          <section 
-            id="section-client-device-drawer"
-            className={`lg:col-span-5 w-full flex flex-col justify-center items-center ${
-              activeLayoutCol === 'both' ? 'lg:col-span-5' : 'lg:col-span-12 max-w-[480px] mx-auto'
-            }`}
-          >
-            <div className="mb-2 text-center">
-              <span className="text-[10px] font-mono text-purple-400/85 font-bold uppercase tracking-wider">Device Sandbox Simulator</span>
+      {/* Main split display columns layout OR Showcase layout */}
+      {activeLayoutCol === 'showcase' ? (
+        <div id="showcase-workspace" className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6 space-y-8 overflow-hidden">
+          
+          {/* Section 1: Parallel Devices Screens Side-by-Side */}
+          <section className="space-y-4">
+            <div className="text-center md:text-left pl-1">
+              <span className="text-[10px] font-mono text-fuchsia-400 font-extrabold uppercase tracking-wide">Multi-Screen Parallel Architect</span>
+              <h2 className="text-lg font-black tracking-tight mt-0.5 text-white">5-DEVICE INTERACTIVE DEMO (All views live & synchronized!)</h2>
             </div>
             
-            <ViewportSim
+            {/* Horizontal row of 5 mobile devices with custom design */}
+            <div className="flex items-start gap-4.5 overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-purple-900 scrollbar-track-slate-950/40">
+              
+              {/* Phone 1: Feed */}
+              <div className="flex-shrink-0 w-[236px] flex flex-col items-center">
+                <span className="text-[9.5px] font-mono font-black text-rose-450 uppercase mb-2.5 bg-rose-950/50 border border-rose-900/30 px-2.5 py-0.5 rounded-full select-none">Feed Screen</span>
+                <div className="w-full bg-[#05020c] rounded-[38px] border-[5px] border-slate-800 shadow-[0_0_20px_rgba(0,0,0,0.85)] overflow-hidden aspect-[9/18.8] h-[465px] relative">
+                  <ViewportSim
+                    chats={chats}
+                    stories={stories}
+                    markers={markers}
+                    wsLogs={wsLogs}
+                    activeChatId={activeChatId}
+                    onSendMessage={handleSendMessage}
+                    onUpdateActiveChat={setActiveChatId}
+                    onCreateNewChat={handleCreateNewChat}
+                    onPostStory={handlePostStory}
+                    onAddMarker={handleAddMarker}
+                    onTriggerWsLog={addWsLog}
+                    onAddReaction={handleAddReaction}
+                    onViewMessageOnce={handleViewMessageOnce}
+                    onUpdateGroupSettings={handleUpdateGroupSettings}
+                    forcedTab="feed"
+                  />
+                </div>
+              </div>
+
+              {/* Phone 2: Explore */}
+              <div className="flex-shrink-0 w-[236px] flex flex-col items-center">
+                <span className="text-[9.5px] font-mono font-black text-purple-400 uppercase mb-2.5 bg-purple-950/50 border border-purple-900/30 px-2.5 py-0.5 rounded-full select-none">Explore Map</span>
+                <div className="w-full bg-[#05020c] rounded-[38px] border-[5px] border-slate-800 shadow-[0_0_20px_rgba(0,0,0,0.85)] overflow-hidden aspect-[9/18.8] h-[465px] relative">
+                  <ViewportSim
+                    chats={chats}
+                    stories={stories}
+                    markers={markers}
+                    wsLogs={wsLogs}
+                    activeChatId={activeChatId}
+                    onSendMessage={handleSendMessage}
+                    onUpdateActiveChat={setActiveChatId}
+                    onCreateNewChat={handleCreateNewChat}
+                    onPostStory={handlePostStory}
+                    onAddMarker={handleAddMarker}
+                    onTriggerWsLog={addWsLog}
+                    onAddReaction={handleAddReaction}
+                    onViewMessageOnce={handleViewMessageOnce}
+                    onUpdateGroupSettings={handleUpdateGroupSettings}
+                    forcedTab="explore"
+                  />
+                </div>
+              </div>
+
+              {/* Phone 3: Create Hub (Gem Menu Open) */}
+              <div className="flex-shrink-0 w-[236px] flex flex-col items-center">
+                <span className="text-[9.5px] font-mono font-black text-pink-400 uppercase mb-2.5 bg-pink-950/50 border border-pink-900/30 px-2.5 py-0.5 rounded-full select-none">Create Hub</span>
+                <div className="w-full bg-[#05020c] rounded-[38px] border-[5px] border-slate-800 shadow-[0_0_20px_rgba(0,0,0,0.85)] overflow-hidden aspect-[9/18.8] h-[465px] relative">
+                  <ViewportSim
+                    chats={chats}
+                    stories={stories}
+                    markers={markers}
+                    wsLogs={wsLogs}
+                    activeChatId={activeChatId}
+                    onSendMessage={handleSendMessage}
+                    onUpdateActiveChat={setActiveChatId}
+                    onCreateNewChat={handleCreateNewChat}
+                    onPostStory={handlePostStory}
+                    onAddMarker={handleAddMarker}
+                    onTriggerWsLog={addWsLog}
+                    onAddReaction={handleAddReaction}
+                    onViewMessageOnce={handleViewMessageOnce}
+                    onUpdateGroupSettings={handleUpdateGroupSettings}
+                    forcedIsGemMenuOpen={true}
+                  />
+                </div>
+              </div>
+
+              {/* Phone 4: Chats */}
+              <div className="flex-shrink-0 w-[236px] flex flex-col items-center">
+                <span className="text-[9.5px] font-mono font-black text-fuchsia-400 uppercase mb-2.5 bg-fuchsia-950/50 border border-fuchsia-900/30 px-2.5 py-0.5 rounded-full select-none">Chats Socket</span>
+                <div className="w-full bg-[#05020c] rounded-[38px] border-[5px] border-slate-800 shadow-[0_0_20px_rgba(0,0,0,0.85)] overflow-hidden aspect-[9/18.8] h-[465px] relative">
+                  <ViewportSim
+                    chats={chats}
+                    stories={stories}
+                    markers={markers}
+                    wsLogs={wsLogs}
+                    activeChatId={activeChatId}
+                    onSendMessage={handleSendMessage}
+                    onUpdateActiveChat={setActiveChatId}
+                    onCreateNewChat={handleCreateNewChat}
+                    onPostStory={handlePostStory}
+                    onAddMarker={handleAddMarker}
+                    onTriggerWsLog={addWsLog}
+                    onAddReaction={handleAddReaction}
+                    onViewMessageOnce={handleViewMessageOnce}
+                    onUpdateGroupSettings={handleUpdateGroupSettings}
+                    forcedTab="chats"
+                  />
+                </div>
+              </div>
+
+              {/* Phone 5: Profile Node */}
+              <div className="flex-shrink-0 w-[236px] flex flex-col items-center">
+                <span className="text-[9.5px] font-mono font-black text-indigo-400 uppercase mb-2.5 bg-indigo-950/50 border border-indigo-900/30 px-2.5 py-0.5 rounded-full select-none">Profile telemetry</span>
+                <div className="w-full bg-[#05020c] rounded-[38px] border-[5px] border-slate-800 shadow-[0_0_20px_rgba(0,0,0,0.85)] overflow-hidden aspect-[9/18.8] h-[465px] relative">
+                  <ViewportSim
+                    chats={chats}
+                    stories={stories}
+                    markers={markers}
+                    wsLogs={wsLogs}
+                    activeChatId={activeChatId}
+                    onSendMessage={handleSendMessage}
+                    onUpdateActiveChat={setActiveChatId}
+                    onCreateNewChat={handleCreateNewChat}
+                    onPostStory={handlePostStory}
+                    onAddMarker={handleAddMarker}
+                    onTriggerWsLog={addWsLog}
+                    onAddReaction={handleAddReaction}
+                    onViewMessageOnce={handleViewMessageOnce}
+                    onUpdateGroupSettings={handleUpdateGroupSettings}
+                    forcedTab="profile"
+                  />
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          {/* Section 2: Unified Showcase Dashboard (Contains Modular Cards, map, chat and analytics) */}
+          <section className="space-y-4 pt-4 border-t border-purple-950/40">
+            <div className="text-center md:text-left pl-1">
+              <span className="text-[10px] font-mono text-purple-400 font-extrabold uppercase tracking-wide">Modular Interactive deck</span>
+              <h2 className="text-lg font-black tracking-tight mt-0.5 text-white">MODULAR CARDS SYSTEM & ANALYTICS</h2>
+            </div>
+            
+            <UnifiedDashboard
               chats={chats}
               stories={stories}
               markers={markers}
-              wsLogs={wsLogs}
-              activeChatId={activeChatId}
+              projectMilestoneProgress={projectMilestoneProgress}
+              onUpdateProjectProgress={setProjectMilestoneProgress}
               onSendMessage={handleSendMessage}
-              onUpdateActiveChat={setActiveChatId}
               onPostStory={handlePostStory}
               onAddMarker={handleAddMarker}
               onTriggerWsLog={addWsLog}
-              onAddReaction={handleAddReaction}
-              onViewMessageOnce={handleViewMessageOnce}
-              onUpdateGroupSettings={handleUpdateGroupSettings}
+              activeChatId={activeChatId}
+              onUpdateActiveChat={setActiveChatId}
             />
           </section>
-        )}
 
-        {/* COL 2: ARCHITECT DECK DRAWINGS & MEMORANDUMS */}
-        {(activeLayoutCol === 'both' || activeLayoutCol === 'spec') && (
-          <section 
-            id="section-architect-specs-panel"
-            className={`w-full flex-1 h-full min-h-[580px] ${
-              activeLayoutCol === 'both' ? 'lg:col-span-7' : 'lg:col-span-12'
-            }`}
-          >
-            <div className="mb-2 text-center lg:text-left pl-2">
-              <span className="text-[10px] font-mono text-purple-400/85 font-bold uppercase tracking-wider">System Specifications Engine</span>
-            </div>
-            <ArchitectBoard chats={chats} stories={stories} />
-          </section>
-        )}
+        </div>
+      ) : (
+        <main id="app-workspace-body" className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start overflow-hidden">
+          
+          {/* COL 1: HIGH FIDELITY GM LIVE SIMULATOR APP */}
+          {(activeLayoutCol === 'dashboard' || activeLayoutCol === 'both' || activeLayoutCol === 'sim') && (
+            <section 
+              id="section-client-device-drawer"
+              className={`lg:col-span-12 w-full flex flex-col justify-center items-center max-w-[480px] mx-auto`}
+            >
+              <div className="mb-2 text-center">
+                <span className="text-[10px] font-mono text-purple-400/85 font-bold uppercase tracking-wider">Device Sandbox Simulator</span>
+              </div>
+              
+              <ViewportSim
+                chats={chats}
+                stories={stories}
+                markers={markers}
+                wsLogs={wsLogs}
+                activeChatId={activeChatId}
+                onSendMessage={handleSendMessage}
+                onUpdateActiveChat={setActiveChatId}
+                onCreateNewChat={handleCreateNewChat}
+                onPostStory={handlePostStory}
+                onAddMarker={handleAddMarker}
+                onTriggerWsLog={addWsLog}
+                onAddReaction={handleAddReaction}
+                onViewMessageOnce={handleViewMessageOnce}
+                onUpdateGroupSettings={handleUpdateGroupSettings}
+              />
+            </section>
+          )}
 
-      </main>
+          {/* COL 2: ARCHITECT DECK DRAWINGS & MEMORANDUMS OR LIVE MOCKUP DASHBOARD */}
+          {(activeLayoutCol === 'dashboard' || activeLayoutCol === 'both' || activeLayoutCol === 'spec') && (
+            <section 
+              id="section-architect-specs-panel"
+              className={`w-full flex-1 h-full min-h-[580px] ${
+                activeLayoutCol === 'dashboard' || activeLayoutCol === 'both' ? 'lg:col-span-12' : 'lg:col-span-12'
+              }`}
+            >
+              {activeLayoutCol === 'dashboard' ? (
+                <UnifiedDashboard
+                  chats={chats}
+                  stories={stories}
+                  markers={markers}
+                  projectMilestoneProgress={projectMilestoneProgress}
+                  onUpdateProjectProgress={setProjectMilestoneProgress}
+                  onSendMessage={handleSendMessage}
+                  onPostStory={handlePostStory}
+                  onAddMarker={handleAddMarker}
+                  onTriggerWsLog={addWsLog}
+                  activeChatId={activeChatId}
+                  onUpdateActiveChat={setActiveChatId}
+                />
+              ) : (
+                <>
+                  <div className="mb-2 text-center lg:text-left pl-2">
+                    <span className="text-[10px] font-mono text-purple-400/85 font-bold uppercase tracking-wider">System Specifications Engine</span>
+                  </div>
+                  <ArchitectBoard chats={chats} stories={stories} />
+                </>
+              )}
+            </section>
+          )}
+
+        </main>
+      )}
 
       {/* Footer System Credits */}
       <footer id="app-design-footer" className="w-full bg-[#05020a] border-t border-purple-950/40 py-4.5 px-6 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-500 text-[10px]">
