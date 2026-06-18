@@ -1,0 +1,6 @@
+{
+  "name": "GM - Hybrid Mobile Social Platform",
+  "description": "Interactive architecture blueprint and high-fidelity prototype dashboard for 'GM', merging persistent messaging with location-centric ephemeral media.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
