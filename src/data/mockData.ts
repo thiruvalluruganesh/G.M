@@ -64,7 +64,12 @@ export const INITIAL_CHATS: ChatThread[] = [
         senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
         text: 'Who is skating near the SOMA intersection later? The sunset light is going to be amazing for filming.',
         timestamp: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
-        status: 'read'
+        status: 'read',
+        readBy: [
+          { userId: 'user_me', username: 'alex_gem', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', timestamp: new Date(Date.now() - 39 * 60 * 1000).toISOString() },
+          { userId: 'user_1', username: 'luna_wave', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80', timestamp: new Date(Date.now() - 38 * 60 * 1000).toISOString() },
+          { userId: 'user_3', username: 'sol_pixel', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80', timestamp: new Date(Date.now() - 35 * 60 * 1000).toISOString() }
+        ]
       },
       {
         id: 'msg_g2',
@@ -74,7 +79,12 @@ export const INITIAL_CHATS: ChatThread[] = [
         senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
         text: 'Count me in! I just dropped a geo-tagged story preview near South Park. Let’s meet there at 6!',
         timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-        status: 'read'
+        status: 'read',
+        readBy: [
+          { userId: 'user_me', username: 'alex_gem', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', timestamp: new Date(Date.now() - 14 * 60 * 1000).toISOString() },
+          { userId: 'user_2', username: 'kai_zen', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80', timestamp: new Date(Date.now() - 13 * 60 * 1000).toISOString() },
+          { userId: 'user_3', username: 'sol_pixel', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80', timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString() }
+        ]
       },
       {
         id: 'msg_g3',
@@ -84,7 +94,10 @@ export const INITIAL_CHATS: ChatThread[] = [
         senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
         text: 'I just uploaded an invitation card event marker! Press on the South Park spot on map for details.',
         timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-        status: 'delivered'
+        status: 'delivered',
+        readBy: [
+          { userId: 'user_me', username: 'alex_gem', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', timestamp: new Date(Date.now() - 1 * 60 * 1000).toISOString() }
+        ]
       }
     ]
   },

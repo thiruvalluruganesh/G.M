@@ -63,7 +63,17 @@ export default function App() {
   };
 
   // 1. Action: Client Sends Message
-  const handleSendMessage = (chatId: string, text: string) => {
+  const handleSendMessage = (
+    chatId: string, 
+    text: string, 
+    options?: {
+      isViewOnce?: boolean;
+      mediaUrl?: string;
+      mediaType?: 'image' | 'video';
+      expiresAt?: string;
+      replyTo?: { id: string; senderName: string; text: string };
+    }
+  ) => {
     const timestampStr = new Date().toISOString();
     
     // Create new client message
@@ -75,7 +85,14 @@ export default function App() {
       senderAvatar: CURRENT_USER.avatar,
       text,
       timestamp: timestampStr,
-      status: 'sent'
+      status: 'sent',
+      isViewOnce: options?.isViewOnce,
+      viewed: false,
+      mediaUrl: options?.mediaUrl,
+      mediaType: options?.mediaType,
+      expiresAt: options?.expiresAt,
+      replyTo: options?.replyTo,
+      reactions: []
     };
 
     // Log client transmission payload
@@ -83,13 +100,16 @@ export default function App() {
       id: `log_${Date.now()}_send`,
       timestamp: timestampStr,
       direction: 'client_to_server',
-      event: 'chat:message_send',
+      event: options?.isViewOnce ? 'chat:view_once_transmit' : 'chat:message_send',
       payload: { 
         chatId, 
-        text, 
+        text: options?.isViewOnce ? '[🔒 Secure View Once Media]' : text, 
         senderId: CURRENT_USER.id, 
         recipientCount: 3,
-        signature: 'AES256_GCM_P_12'
+        signature: 'AES256_GCM_P_12',
+        isViewOnce: !!options?.isViewOnce,
+        expiresAt: options?.expiresAt || 'null',
+        repliedToMessage: options?.replyTo ? options.replyTo.id : 'none'
       }
     };
     addWsLog(logSend);
@@ -110,55 +130,187 @@ export default function App() {
       return updated;
     });
 
-    // Simulate reactive Server WebSocket broadcast received 600ms later from counterparts
-    setTimeout(() => {
-      const serverReceiptTimestamp = new Date().toISOString();
-      
-      // Update our message status to 'read' as counterpart sockets process
-      setChats((prevChats) => {
-        return prevChats.map((chat) => {
-          if (chat.id === chatId) {
-            return {
-              ...chat,
-              messages: chat.messages.map((m) => {
-                if (m.id === newMsg.id) {
-                  return { ...m, status: 'read' };
-                }
-                return m;
-              })
-            };
-          }
-          return chat;
+    // Simulate multi-stage read receipts from counterparts
+    const targetChat = chats.find(c => c.id === chatId);
+    const isGroup = targetChat?.type === 'group';
+
+    if (isGroup) {
+      // Stage 1: Solomon reads message (400ms)
+      setTimeout(() => {
+        setChats((prevChats) => {
+          return prevChats.map((chat) => {
+            if (chat.id === chatId) {
+              return {
+                ...chat,
+                messages: chat.messages.map((m) => {
+                  if (m.id === newMsg.id) {
+                    const currentRead = m.readBy || [];
+                    return {
+                      ...m,
+                      status: 'delivered' as const,
+                      readBy: [...currentRead, {
+                        userId: 'user_3',
+                        username: 'sol_pixel',
+                        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+                        timestamp: new Date().toISOString()
+                      }]
+                    };
+                  }
+                  return m;
+                })
+              };
+            }
+            return chat;
+          });
         });
-      });
+        addWsLog({
+          id: `log_receipt_${Date.now()}_sol`,
+          timestamp: new Date().toISOString(),
+          direction: 'server_to_client',
+          event: 'chat:read_receipt_ack',
+          payload: { chatId, messageId: newMsg.id, userId: 'user_3', name: 'Solomon Vance' }
+        });
+      }, 500);
 
-      // Log server sequence broadcast telemetry
-      addWsLog({
-        id: `log_${Date.now()}_recv_broadcast`,
-        timestamp: serverReceiptTimestamp,
-        direction: 'server_to_client',
-        event: 'chat:message_broadcast_ack',
-        payload: { 
-          messageId: newMsg.id, 
-          chatId, 
-          deliveredUsers: ['user_1', 'user_2', 'user_3'],
-          latencySec: 0.12 
-        }
-      });
+      // Stage 2: Luna reads message & updates message status to 'read' (1200ms)
+      setTimeout(() => {
+        setChats((prevChats) => {
+          return prevChats.map((chat) => {
+            if (chat.id === chatId) {
+              return {
+                ...chat,
+                messages: chat.messages.map((m) => {
+                  if (m.id === newMsg.id) {
+                    const currentRead = m.readBy || [];
+                    return {
+                      ...m,
+                      status: 'read' as const,
+                      readBy: [...currentRead, {
+                        userId: 'user_1',
+                        username: 'luna_wave',
+                        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+                        timestamp: new Date().toISOString()
+                      }]
+                    };
+                  }
+                  return m;
+                })
+              };
+            }
+            return chat;
+          });
+        });
+        addWsLog({
+          id: `log_receipt_${Date.now()}_luna`,
+          timestamp: new Date().toISOString(),
+          direction: 'server_to_client',
+          event: 'chat:read_receipt_ack',
+          payload: { chatId, messageId: newMsg.id, userId: 'user_1', name: 'Luna Sterling' }
+        });
+      }, 1200);
 
-      // Peer automated response simulation (to keep prototype lively!)
-      const targetChat = chats.find(c => c.id === chatId);
-      if (targetChat) {
+      // Stage 3: Kai reads message (2000ms)
+      setTimeout(() => {
+        setChats((prevChats) => {
+          return prevChats.map((chat) => {
+            if (chat.id === chatId) {
+              return {
+                ...chat,
+                messages: chat.messages.map((m) => {
+                  if (m.id === newMsg.id) {
+                    const currentRead = m.readBy || [];
+                    return {
+                      ...m,
+                      readBy: [...currentRead, {
+                        userId: 'user_2',
+                        username: 'kai_zen',
+                        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+                        timestamp: new Date().toISOString()
+                      }]
+                    };
+                  }
+                  return m;
+                })
+              };
+            }
+            return chat;
+          });
+        });
+        addWsLog({
+          id: `log_receipt_${Date.now()}_kai`,
+          timestamp: new Date().toISOString(),
+          direction: 'server_to_client',
+          event: 'chat:read_receipt_ack',
+          payload: { chatId, messageId: newMsg.id, userId: 'user_2', name: 'Kai Takahashi' }
+        });
+      }, 2000);
+
+    } else {
+      // 1:1 Chat: Recipient reads message after 900ms
+      setTimeout(() => {
+        const recipientUser = chatId === 'chat_1' ? {
+          userId: 'user_1',
+          username: 'luna_wave',
+          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80'
+        } : {
+          userId: 'user_2',
+          username: 'kai_zen',
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
+        };
+
+        setChats((prevChats) => {
+          return prevChats.map((chat) => {
+            if (chat.id === chatId) {
+              return {
+                ...chat,
+                messages: chat.messages.map((m) => {
+                  if (m.id === newMsg.id) {
+                    return {
+                      ...m,
+                      status: 'read' as const,
+                      readBy: [{
+                        ...recipientUser,
+                        timestamp: new Date().toISOString()
+                      }]
+                    };
+                  }
+                  return m;
+                })
+              };
+            }
+            return chat;
+          });
+        });
+
+        addWsLog({
+          id: `log_receipt_${Date.now()}_direct`,
+          timestamp: new Date().toISOString(),
+          direction: 'server_to_client',
+          event: 'chat:read_receipt_ack',
+          payload: { chatId, messageId: newMsg.id, userId: recipientUser.userId, name: recipientUser.username }
+        });
+      }, 900);
+    }
+
+    // Peer automated response simulation (to keep prototype lively!)
+    setTimeout(() => {
         let responder = 'Luna Sterling';
         let respAvatar = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80';
         let respId = 'user_1';
-        let respText = 'Solid, just saw the spatial point update on the GM grid!';
+        let respText = 'Solid reply, just mapped that into SOMA coordinate arrays!';
 
         if (chatId === 'chat_2') {
           responder = 'Kai Takahashi';
           respAvatar = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
           respId = 'user_2';
-          respText = 'Roger, synchronizing with your current perimeter coords.';
+          respText = 'Roger, synchronizing with your current active peripheral grid.';
+        }
+
+        // Randomly respond to what we sent!
+        if (options?.isViewOnce) {
+          respText = 'Whoa! Nice ephemeral snap shot. 📸 Low profile mode active!';
+        } else if (options?.expiresAt) {
+          respText = 'Noted! Expiring this stream link in 24h.';
         }
 
         const peerMsg: Message = {
@@ -169,7 +321,8 @@ export default function App() {
           senderAvatar: respAvatar,
           text: respText,
           timestamp: new Date().toISOString(),
-          status: 'read'
+          status: 'read',
+          reactions: []
         };
 
         // Append peer reply
@@ -200,12 +353,83 @@ export default function App() {
             payloadSize: '512b' 
           }
         });
-      }
     }, 1200);
   };
 
+  // Live reactions handler
+  const handleAddReaction = (chatId: string, messageId: string, emoji: string) => {
+    setChats((prevChats) => {
+      return prevChats.map((chat) => {
+        if (chat.id === chatId) {
+          return {
+            ...chat,
+            messages: chat.messages.map((m) => {
+              if (m.id === messageId) {
+                const existingReactions = m.reactions || [];
+                const alreadyReacted = existingReactions.find(
+                  (r) => r.userId === CURRENT_USER.id && r.emoji === emoji
+                );
+                
+                let updatedReactions;
+                if (alreadyReacted) {
+                  updatedReactions = existingReactions.filter(
+                    (r) => !(r.userId === CURRENT_USER.id && r.emoji === emoji)
+                  );
+                } else {
+                  updatedReactions = [
+                    ...existingReactions,
+                    { emoji, userId: CURRENT_USER.id, username: CURRENT_USER.username }
+                  ];
+                }
+                return { ...m, reactions: updatedReactions };
+              }
+              return m;
+            })
+          };
+        }
+        return chat;
+      });
+    });
+
+    addWsLog({
+      id: `log_reaction_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      direction: 'client_to_server',
+      event: 'chat:message_reaction_sync',
+      payload: { chatId, messageId, emoji, shooter: CURRENT_USER.username }
+    });
+  };
+
+  // View once state trigger
+  const handleViewMessageOnce = (chatId: string, messageId: string) => {
+    setChats((prevChats) => {
+      return prevChats.map((chat) => {
+        if (chat.id === chatId) {
+          return {
+            ...chat,
+            messages: chat.messages.map((m) => {
+              if (m.id === messageId) {
+                return { ...m, viewed: true };
+              }
+              return m;
+            })
+          };
+        }
+        return chat;
+      });
+    });
+
+    addWsLog({
+      id: `log_viewonce_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      direction: 'client_to_server',
+      event: 'chat:view_once_burned',
+      payload: { chatId, messageId, evictedFromNodeCache: true, cryptoStatus: 'CLEARED' }
+    });
+  };
+
   // 2. Action: Post New Ephemeral Story
-  const handlePostStory = (content: string, bg: string, location?: string) => {
+  const handlePostStory = (content: string, bg: string, location?: string, isCloseFriendsOnly?: boolean) => {
     const timestampStr = new Date().toISOString();
     const expiresTimestamp = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -219,6 +443,7 @@ export default function App() {
       content,
       createdAt: timestampStr,
       expiresAt: expiresTimestamp,
+      isCloseFriendsOnly: !!isCloseFriendsOnly,
       geo: {
         lat: 37.7749,
         lng: -122.4194,
@@ -235,7 +460,7 @@ export default function App() {
       id: `marker_story_${Date.now()}`,
       lat: 37.7749 + (Math.random() - 0.5) * 0.015, // random jitter around SOMA
       lng: -122.4194 + (Math.random() - 0.5) * 0.015,
-      title: `${CURRENT_USER.username}'s disappearing packet`,
+      title: `${CURRENT_USER.username}'s ${isCloseFriendsOnly ? 'Close Circle' : 'disappearing'} packet`,
       description: content,
       type: 'media',
       creatorId: CURRENT_USER.id,
@@ -256,6 +481,7 @@ export default function App() {
       payload: {
         storyId: newStory.id,
         bgGradient: bg,
+        isCloseFriendsOnly: !!isCloseFriendsOnly,
         geo: newStory.geo,
         ttlHours: 24,
         dbTrigger: 'TTL_Index_Evict'
@@ -271,7 +497,7 @@ export default function App() {
         event: 'ephemeral:story_broadcast',
         payload: {
           success: true,
-          broadcastNodesCount: 12,
+          broadcastNodesCount: isCloseFriendsOnly ? 3 : 12, // smaller audience subgroup for Close Friends
           radiusMeters: 500,
           injectedMarkers: [newMarker.id]
         }
@@ -329,6 +555,28 @@ export default function App() {
         }
       });
     }, 600);
+  };
+
+  const handleUpdateGroupSettings = (chatId: string, updates: { name?: string; avatar?: string; members?: string[] }) => {
+    setChats((prevChats) => {
+      return prevChats.map((chat) => {
+        if (chat.id === chatId) {
+          return {
+            ...chat,
+            ...updates
+          };
+        }
+        return chat;
+      });
+    });
+
+    addWsLog({
+      id: `log_group_settings_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      direction: 'client_to_server',
+      event: 'chat:group_settings_modified',
+      payload: { chatId, ...updates, authorizedBy: CURRENT_USER.username }
+    });
   };
 
   return (
@@ -415,6 +663,9 @@ export default function App() {
               onPostStory={handlePostStory}
               onAddMarker={handleAddMarker}
               onTriggerWsLog={addWsLog}
+              onAddReaction={handleAddReaction}
+              onViewMessageOnce={handleViewMessageOnce}
+              onUpdateGroupSettings={handleUpdateGroupSettings}
             />
           </section>
         )}
